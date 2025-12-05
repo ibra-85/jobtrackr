@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js"
+import { createBrowserClient } from "@supabase/ssr"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -10,7 +10,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-export const supabase = createClient(
+/**
+ * Client Supabase côté client (Browser) pour les Client Components.
+ * Utilise @supabase/ssr pour une meilleure gestion des cookies et sessions.
+ */
+export const supabase = createBrowserClient(
   supabaseUrl ?? "",
   supabaseAnonKey ?? "",
 )

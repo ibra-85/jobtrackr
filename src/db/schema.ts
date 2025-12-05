@@ -26,5 +26,34 @@ export type Company = {
   createdAt: Date
 }
 
+export type DocumentType = "cv" | "cover_letter"
+
+export type Document = {
+  id: string
+  userId: string
+  type: DocumentType
+  title: string
+  content: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type ActivityType =
+  | "application_created"
+  | "application_updated"
+  | "application_status_changed"
+  | "interview_scheduled"
+  | "note_added"
+
+export type Activity = {
+  id: string
+  userId: string
+  applicationId?: string
+  type: ActivityType
+  description: string
+  metadata?: Record<string, unknown>
+  createdAt: Date
+}
+
 
 
