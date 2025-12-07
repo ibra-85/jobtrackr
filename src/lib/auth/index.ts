@@ -1,10 +1,9 @@
-// Point d'entrée d'auth : on choisit ici le provider (Supabase, BetterAuth, etc.)
+// Point d'entrée d'auth : utilise Better Auth
 
 import type { AuthAdapter } from "./types"
-import { supabaseAuthAdapter } from "./supabase-adapter"
+import { betterAuthAdapter } from "./better-auth-adapter"
 
-// Plus tard, on pourra basculer vers un autre adapter (BetterAuth, etc.)
-export const authAdapter: AuthAdapter = supabaseAuthAdapter
+export const authAdapter: AuthAdapter = betterAuthAdapter
 
 
 

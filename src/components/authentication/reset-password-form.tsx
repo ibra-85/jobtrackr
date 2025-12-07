@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useEffect, useMemo, useRef } from "react"
-import { Eye, EyeOff, Loader2, CheckCircle2, XCircle, Mail, Lock, Check, X, Briefcase } from "lucide-react"
-import { useRouter } from "next/navigation"
+import React, { useState, useEffect, useRef, useMemo } from "react"
+import { Eye, EyeOff, Loader2, CheckCircle2, XCircle, Lock, Check, X, Briefcase, ArrowLeft } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 
@@ -10,9 +10,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { authAdapter } from "@/lib/auth"
 import { authClient } from "@/lib/auth/client"
-import { getEmailValidationError } from "@/lib/validation/email"
 import {
   calculatePasswordStrength,
   getPasswordStrengthColor,
@@ -30,59 +28,46 @@ const PASSWORD_REQUIREMENTS_LABELS: Record<keyof PasswordRequirements, string> =
   special: "Au moins 1 caractère spécial",
 }
 
-export function SignupForm({
+export function ResetPasswordForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter()
-  const emailInputRef = useRef<HTMLInputElement>(null)
+  const searchParams = useSearchParams()
+  const token = searchParams.get("token")
+  const errorParam = searchParams.get("error")
+
+  const passwordInputRef = useRef<HTMLInputElement>(null)
   const errorRef = useRef<HTMLDivElement>(null)
 
-  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [error, setError] = useState("")
+  const [error, setError] = useState(errorParam === "INVALID_TOKEN" ? "Le lien de réinitialisation est invalide ou a expiré." : "")
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
 
-  // Validation en temps réel
-  const [emailError, setEmailError] = useState<string | null>(null)
-  const [emailTouched, setEmailTouched] = useState(false)
   const [passwordTouched, setPasswordTouched] = useState(false)
 
-  // Auto-focus sur le champ email au chargement
   useEffect(() => {
-    emailInputRef.current?.focus()
-  }, [])
+    if (!token) {
+      setError("Token manquant. Vérifie que tu as bien cliqué sur le lien dans l'email.")
+    }
+    passwordInputRef.current?.focus()
+  }, [token])
 
-  // Gestion du focus après erreur
   useEffect(() => {
     if (error && errorRef.current) {
       errorRef.current.focus()
     }
   }, [error])
 
-  // Calcul de la force du mot de passe
   const passwordStrength = useMemo(
     () => calculatePasswordStrength(password),
     [password],
   )
 
-  // Validation email en temps réel
-  useEffect(() => {
-    if (!emailTouched) return
-
-    if (email.length === 0) {
-      setEmailError(null)
-      return
-    }
-
-    const error = getEmailValidationError(email)
-    setEmailError(error)
-  }, [email, emailTouched])
-
-  // Validation confirmation mot de passe
   const confirmPasswordError =
     passwordTouched && confirmPassword.length > 0 && password !== confirmPassword
       ? "Les mots de passe ne correspondent pas"
@@ -91,19 +76,13 @@ export function SignupForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setEmailTouched(true)
     setPasswordTouched(true)
 
-    // Validation email
-    const emailValidationError = getEmailValidationError(email)
-    if (emailValidationError) {
-      setEmailError(emailValidationError)
-      setError(emailValidationError)
-      emailInputRef.current?.focus()
+    if (!token) {
+      setError("Token manquant. Vérifie que tu as bien cliqué sur le lien dans l'email.")
       return
     }
 
-    // Validation mot de passe
     if (!passwordStrength.allMet) {
       setError("Le mot de passe ne respecte pas tous les critères requis.")
       return
@@ -116,45 +95,75 @@ export function SignupForm({
 
     setLoading(true)
     try {
-      await authAdapter.signUpWithEmail({
-        email: email.trim(),
-        password,
+      const { error } = await authClient.resetPassword({
+        newPassword: password,
+        token,
       })
-      
-      // Better Auth envoie automatiquement l'email de vérification via emailVerification.sendVerificationEmail
-      // En mode développement, la vérification est désactivée dans le middleware, donc on redirige directement
-      // En production, on redirige vers la page de vérification
-      const isDevelopment = process.env.NEXT_PUBLIC_NODE_ENV === "development" || 
-                           (typeof window !== "undefined" && window.location.hostname === "localhost")
-      
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      if (isDevelopment) {
-        // En mode dev, rediriger directement vers le dashboard (la vérification est désactivée dans le middleware)
-        router.push("/dashboard")
-      } else {
-        // En production, rediriger vers la page de vérification (Better Auth a déjà envoyé l'email)
-        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`)
+
+      if (error) {
+        throw new Error(error.message || "Erreur lors de la réinitialisation")
       }
+
+      setSuccess(true)
+      setTimeout(() => {
+        router.push("/login")
+      }, 2000)
     } catch (err) {
       const errorMessage = getAuthErrorMessage(err)
       setError(errorMessage)
-      // Focus sur le champ email en cas d'erreur
-      setTimeout(() => emailInputRef.current?.focus(), 100)
+      setTimeout(() => passwordInputRef.current?.focus(), 100)
     } finally {
       setLoading(false)
     }
   }
 
-  const isEmailValid = emailTouched && email.length > 0 && !emailError
   const showPasswordStrength = passwordTouched && password.length > 0
-  const isFormDisabled = loading
+  const isFormDisabled = loading || success || !token
+
+  if (success) {
+    return (
+      <>
+        <AuthBackground />
+        <div className={cn("flex flex-col gap-6 relative z-10", className)} {...props}>
+          <div className="absolute -top-12 left-0 right-0 flex justify-center">
+            <Link
+              href="/"
+              className="flex items-center space-x-2 text-white hover:opacity-80 transition-opacity"
+              aria-label="Retour à l'accueil"
+            >
+              <Briefcase className="h-5 w-5" />
+              <span className="text-xl font-bold">JobTrackr</span>
+            </Link>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="backdrop-blur-md bg-zinc-950/70 border-white/10 shadow-2xl">
+              <CardHeader className="text-center space-y-2">
+                <div className="flex justify-center mb-4">
+                  <CheckCircle2 className="h-16 w-16 text-green-400" />
+                </div>
+                <CardTitle className="text-2xl font-bold bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
+                  Mot de passe réinitialisé !
+                </CardTitle>
+                <CardDescription className="text-zinc-400">
+                  Redirection vers la page de connexion...
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </motion.div>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
       <AuthBackground />
       <div className={cn("flex flex-col gap-6 relative z-10", className)} {...props}>
-        {/* Logo retour accueil */}
         <div className="absolute -top-12 left-0 right-0 flex justify-center">
           <Link
             href="/"
@@ -174,92 +183,23 @@ export function SignupForm({
           <Card className="backdrop-blur-md bg-zinc-950/70 border-white/10 shadow-2xl">
             <CardHeader className="text-center space-y-1">
               <CardTitle className="text-2xl font-bold bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
-                Créer un compte
+                Nouveau mot de passe
               </CardTitle>
               <CardDescription className="text-zinc-400">
-                Crée ton compte JobTrackr pour suivre tes candidatures
+                Choisis un nouveau mot de passe sécurisé
               </CardDescription>
             </CardHeader>
 
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-                {/* Email */}
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium flex items-center gap-2 text-zinc-300">
-                    <Mail className="h-4 w-4 text-zinc-400" />
-                    Email
-                  </label>
-                  <div className="relative">
-                    <Input
-                      ref={emailInputRef}
-                      id="email"
-                      type="email"
-                      placeholder="email@exemple.fr"
-                      required
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value)
-                        setEmailTouched(true)
-                        setError("")
-                      }}
-                      onBlur={() => setEmailTouched(true)}
-                      disabled={isFormDisabled}
-                      className={cn(
-                        "pr-10 bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus-visible:border-white/20 focus-visible:ring-white/20 transition-all duration-200 hover:bg-zinc-900/70 disabled:opacity-50 disabled:cursor-not-allowed",
-                        emailError && "border-red-500/50 focus-visible:border-red-500/50 focus-visible:ring-red-500/20",
-                        isEmailValid && "border-green-500/50 focus-visible:border-green-500/50 focus-visible:ring-green-500/20"
-                      )}
-                      aria-invalid={!!emailError}
-                      aria-describedby={emailError ? "email-error" : undefined}
-                      aria-required="true"
-                    />
-                    <AnimatePresence>
-                      {isEmailValid && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0 }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                        >
-                          <CheckCircle2 className="h-4 w-4 text-green-400" aria-hidden="true" />
-                        </motion.div>
-                      )}
-                      {emailError && emailTouched && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0 }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                        >
-                          <XCircle className="h-4 w-4 text-red-400" aria-hidden="true" />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  <AnimatePresence>
-                    {emailError && emailTouched && (
-                      <motion.p
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        id="email-error"
-                        className="text-xs text-red-400"
-                        role="alert"
-                      >
-                        {emailError}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Password */}
                 <div className="space-y-2">
                   <label htmlFor="password" className="text-sm font-medium flex items-center gap-2 text-zinc-300">
                     <Lock className="h-4 w-4 text-zinc-400" />
-                    Mot de passe
+                    Nouveau mot de passe
                   </label>
                   <div className="relative">
                     <Input
+                      ref={passwordInputRef}
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
@@ -286,7 +226,6 @@ export function SignupForm({
                     </button>
                   </div>
 
-                  {/* Indicateur de force du mot de passe */}
                   <AnimatePresence>
                     {showPasswordStrength && (
                       <motion.div
@@ -295,7 +234,6 @@ export function SignupForm({
                         exit={{ opacity: 0, height: 0 }}
                         className="space-y-2"
                       >
-                        {/* Barre de progression */}
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-zinc-400">Force du mot de passe</span>
@@ -324,7 +262,6 @@ export function SignupForm({
                           </div>
                         </div>
 
-                        {/* Critères */}
                         <div className="space-y-1.5">
                           {Object.entries(passwordStrength.requirements).map(([key, met]) => (
                             <motion.div
@@ -353,7 +290,6 @@ export function SignupForm({
                   </AnimatePresence>
                 </div>
 
-                {/* Confirm Password */}
                 <div className="space-y-2">
                   <label htmlFor="confirm-password" className="text-sm font-medium flex items-center gap-2 text-zinc-300">
                     <Lock className="h-4 w-4 text-zinc-400" />
@@ -429,9 +365,8 @@ export function SignupForm({
                   </AnimatePresence>
                 </div>
 
-                {/* Error global */}
                 <AnimatePresence>
-                  {error && !emailError && !confirmPasswordError && (
+                  {error && !confirmPasswordError && (
                     <motion.div
                       ref={errorRef}
                       initial={{ opacity: 0, height: 0 }}
@@ -446,46 +381,34 @@ export function SignupForm({
                   )}
                 </AnimatePresence>
 
-                {/* Submit */}
                 <Button
                   type="submit"
-                  disabled={loading || !!emailError || !passwordStrength.allMet || !!confirmPasswordError || isFormDisabled}
+                  disabled={loading || !passwordStrength.allMet || !!confirmPasswordError || isFormDisabled}
                   className="w-full"
                   aria-busy={loading}
                 >
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                      Création du compte...
+                      Réinitialisation...
                     </>
                   ) : (
-                    "Créer un compte"
+                    "Réinitialiser le mot de passe"
                   )}
                 </Button>
 
                 <p className="text-xs text-center text-zinc-500">
-                  Tu as déjà un compte ?{" "}
                   <Link href="/login" className="text-white hover:text-primary hover:underline transition-colors font-medium">
-                    Connecte-toi
+                    <ArrowLeft className="inline h-3 w-3 mr-1" />
+                    Retour à la connexion
                   </Link>
                 </p>
               </form>
             </CardContent>
           </Card>
-
-          {/* Conditions d'utilisation - en dehors de la card */}
-          <p className="text-xs text-center text-zinc-400 mt-6">
-            En te connectant, tu acceptes nos{" "}
-            <Link href="/terms" className="underline hover:text-primary hover:underline transition-colors">
-              conditions d&apos;utilisation
-            </Link><br />
-            {" "}et notre{" "}
-            <Link href="/privacy" className="underline hover:text-primary hover:underline transition-colors">
-              politique de confidentialité
-            </Link>
-          </p>
         </motion.div>
       </div>
     </>
   )
 }
+

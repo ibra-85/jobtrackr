@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import { Eye, EyeOff, Loader2, CheckCircle2, XCircle, Mail, Lock, Briefcase } from "lucide-react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { Mail, Loader2, CheckCircle2, XCircle, Briefcase, ArrowLeft } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 
@@ -10,47 +10,37 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import { authAdapter } from "@/lib/auth"
+import { authClient } from "@/lib/auth/client"
 import { getEmailValidationError } from "@/lib/validation/email"
 import { getAuthErrorMessage } from "@/lib/auth/error-handler"
 import { AuthBackground } from "./auth-background"
 
-export function LoginForm({
+export function ForgotPasswordForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
   const emailInputRef = useRef<HTMLInputElement>(null)
   const errorRef = useRef<HTMLDivElement>(null)
 
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
   
-  // Validation en temps réel
   const [emailError, setEmailError] = useState<string | null>(null)
   const [emailTouched, setEmailTouched] = useState(false)
 
-  // Auto-focus sur le champ email au chargement
   useEffect(() => {
     emailInputRef.current?.focus()
   }, [])
 
-  // Gestion du focus après erreur
   useEffect(() => {
     if (error && errorRef.current) {
       errorRef.current.focus()
     }
   }, [error])
 
-  // Validation email en temps réel
   useEffect(() => {
     if (!emailTouched) return
     
@@ -63,21 +53,11 @@ export function LoginForm({
     setEmailError(error)
   }, [email, emailTouched])
 
-  // Charger "Se souvenir de moi" depuis localStorage
-  useEffect(() => {
-    const savedEmail = localStorage.getItem("rememberMeEmail")
-    if (savedEmail) {
-      setEmail(savedEmail)
-      setRememberMe(true)
-    }
-  }, [])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setEmailTouched(true)
 
-    // Validation de l'email
     const emailValidationError = getEmailValidationError(email)
     if (emailValidationError) {
       setEmailError(emailValidationError)
@@ -88,25 +68,19 @@ export function LoginForm({
 
     setLoading(true)
     try {
-      await authAdapter.signInWithEmail({
-        email: email.trim(),
-        password,
+      const { error } = await authClient.requestPasswordReset({
+        email: email.trim().toLowerCase(),
+        redirectTo: `${window.location.origin}/reset-password`,
       })
 
-      // Sauvegarder l'email si "Se souvenir de moi" est coché
-      if (rememberMe) {
-        localStorage.setItem("rememberMeEmail", email.trim())
-      } else {
-        localStorage.removeItem("rememberMeEmail")
+      if (error) {
+        throw new Error(error.message || "Erreur lors de l'envoi de l'email")
       }
 
-      // Transition de succès avant redirection
-      await new Promise(resolve => setTimeout(resolve, 300))
-      router.push(callbackUrl)
+      setSuccess(true)
     } catch (err) {
       const errorMessage = getAuthErrorMessage(err)
       setError(errorMessage)
-      // Focus sur le champ email en cas d'erreur
       setTimeout(() => emailInputRef.current?.focus(), 100)
     } finally {
       setLoading(false)
@@ -114,13 +88,67 @@ export function LoginForm({
   }
 
   const isEmailValid = emailTouched && email.length > 0 && !emailError
-  const isFormDisabled = loading
+  const isFormDisabled = loading || success
+
+  if (success) {
+    return (
+      <>
+        <AuthBackground />
+        <div className={cn("flex flex-col gap-6 relative z-10", className)} {...props}>
+          <div className="absolute -top-12 left-0 right-0 flex justify-center">
+            <Link
+              href="/"
+              className="flex items-center space-x-2 text-white hover:opacity-80 transition-opacity"
+              aria-label="Retour à l'accueil"
+            >
+              <Briefcase className="h-5 w-5" />
+              <span className="text-xl font-bold">JobTrackr</span>
+            </Link>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="backdrop-blur-md bg-zinc-950/70 border-white/10 shadow-2xl">
+              <CardHeader className="text-center space-y-2">
+                <div className="flex justify-center mb-4">
+                  <CheckCircle2 className="h-16 w-16 text-green-400" />
+                </div>
+                <CardTitle className="text-2xl font-bold bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
+                  Email envoyé !
+                </CardTitle>
+                <CardDescription className="text-zinc-400">
+                  Nous avons envoyé un lien de réinitialisation à {email}
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                <p className="text-sm text-zinc-300 text-center">
+                  Vérifie ta boîte de réception et clique sur le lien pour réinitialiser ton mot de passe.
+                  Le lien expire dans 1 heure.
+                </p>
+                <Button
+                  onClick={() => router.push("/login")}
+                  className="w-full"
+                  variant="outline"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Retour à la connexion
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
       <AuthBackground />
       <div className={cn("flex flex-col gap-6 relative z-10", className)} {...props}>
-        {/* Logo retour accueil */}
         <div className="absolute -top-12 left-0 right-0 flex justify-center">
           <Link
             href="/"
@@ -140,16 +168,15 @@ export function LoginForm({
           <Card className="backdrop-blur-md bg-zinc-950/70 border-white/10 shadow-2xl">
             <CardHeader className="text-center space-y-1">
               <CardTitle className="text-2xl font-bold bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
-                Connexion
+                Mot de passe oublié
               </CardTitle>
               <CardDescription className="text-zinc-400">
-                Connecte-toi pour accéder à ton tableau de bord JobTrackr
+                Entre ton email et nous t'enverrons un lien pour réinitialiser ton mot de passe
               </CardDescription>
             </CardHeader>
 
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-                {/* Email */}
                 <div className="space-y-2">
                   <label htmlFor="email" className="text-sm font-medium flex items-center gap-2 text-zinc-300">
                     <Mail className="h-4 w-4 text-zinc-400" />
@@ -218,63 +245,6 @@ export function LoginForm({
                   </AnimatePresence>
                 </div>
 
-                {/* Password */}
-                <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-medium flex items-center gap-2 text-zinc-300">
-                    <Lock className="h-4 w-4 text-zinc-400" />
-                    Mot de passe
-                  </label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      required
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value)
-                        setError("")
-                      }}
-                      disabled={isFormDisabled}
-                      className="pr-10 bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus-visible:border-white/20 focus-visible:ring-white/20 transition-all duration-200 hover:bg-zinc-900/70 disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-required="true"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      disabled={isFormDisabled}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between text-xs flex-wrap gap-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="remember"
-                        checked={rememberMe}
-                        onCheckedChange={(checked) => setRememberMe(checked === true)}
-                        disabled={isFormDisabled}
-                      />
-                      <Label
-                        htmlFor="remember"
-                        className="text-zinc-400 cursor-pointer hover:text-zinc-300 transition-colors"
-                      >
-                        Se souvenir de moi
-                      </Label>
-                    </div>
-                    <Link
-                      href="/forgot-password"
-                      className="text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
-                      tabIndex={isFormDisabled ? -1 : 0}
-                    >
-                      Mot de passe oublié ?
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Error global */}
                 <AnimatePresence>
                   {error && !emailError && (
                     <motion.div
@@ -291,46 +261,34 @@ export function LoginForm({
                   )}
                 </AnimatePresence>
 
-                {/* Submit */}
-                <Button 
-                  type="submit" 
-                  disabled={loading || !!emailError || isFormDisabled} 
+                <Button
+                  type="submit"
+                  disabled={loading || !!emailError || isFormDisabled}
                   className="w-full"
                   aria-busy={loading}
                 >
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                      Connexion...
+                      Envoi en cours...
                     </>
                   ) : (
-                    "Se connecter"
+                    "Envoyer le lien de réinitialisation"
                   )}
                 </Button>
 
                 <p className="text-xs text-center text-zinc-500">
-                  Tu n&apos;as pas encore de compte ?{" "}
-                  <Link href="/register" className="text-white hover:text-primary hover:underline transition-colors font-medium">
-                    Inscris-toi
+                  <Link href="/login" className="text-white hover:text-primary hover:underline transition-colors font-medium">
+                    <ArrowLeft className="inline h-3 w-3 mr-1" />
+                    Retour à la connexion
                   </Link>
                 </p>
               </form>
             </CardContent>
           </Card>
-
-          {/* Conditions d'utilisation - en dehors de la card */}
-          <p className="text-xs text-center text-zinc-400 mt-6">
-            En te connectant, tu acceptes nos{" "}
-            <Link href="/terms" className="underline hover:text-primary hover:underline transition-colors">
-              conditions d&apos;utilisation
-            </Link><br />
-            {" "}et notre{" "}
-            <Link href="/privacy" className="underline hover:text-primary hover:underline transition-colors">
-              politique de confidentialité
-            </Link>
-          </p>
         </motion.div>
       </div>
     </>
   )
 }
+

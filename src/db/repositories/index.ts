@@ -4,9 +4,7 @@
  */
 
 export * from "./applications.repository"
-
-// TODO: Ajouter les autres repositories au fur et à mesure
-// export * from "./companies.repository"
-// export * from "./documents.repository"
-// export * from "./activities.repository"
+export * from "./companies.repository"
+export * from "./documents.repository"
+export * from "./activities.repository"
 

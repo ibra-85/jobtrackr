@@ -1,9 +1,11 @@
 /**
  * Repository pour les candidatures (Applications).
- * Utilise Supabase pour l'instant, mais peut être migré vers Prisma/Drizzle facilement.
+ * Utilise Drizzle ORM avec Neon.
  */
 
-import { supabase } from "@/lib/supabase-client"
+import { db } from "../index"
+import { applications } from "../drizzle-schema"
+import { eq, and, desc } from "drizzle-orm"
 import type { Application, ApplicationStatus } from "../schema"
 
 export const applicationsRepository = {
@@ -11,38 +13,30 @@ export const applicationsRepository = {
    * Récupère toutes les candidatures d'un utilisateur
    */
   async getAllByUserId(userId: string): Promise<Application[]> {
-    const { data, error } = await supabase
-      .from("applications")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
+    const results = await db
+      .select()
+      .from(applications)
+      .where(eq(applications.userId, userId))
+      .orderBy(desc(applications.createdAt))
 
-    if (error) {
-      throw new Error(`Erreur lors de la récupération des candidatures: ${error.message}`)
-    }
-
-    return (data || []).map(mapRowToApplication)
+    return results.map(mapRowToApplication)
   },
 
   /**
    * Récupère une candidature par son ID
    */
   async getById(id: string, userId: string): Promise<Application | null> {
-    const { data, error } = await supabase
-      .from("applications")
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", userId)
-      .single()
+    const results = await db
+      .select()
+      .from(applications)
+      .where(and(eq(applications.id, id), eq(applications.userId, userId)))
+      .limit(1)
 
-    if (error) {
-      if (error.code === "PGRST116") {
-        return null // Not found
-      }
-      throw new Error(`Erreur lors de la récupération de la candidature: ${error.message}`)
+    if (results.length === 0) {
+      return null
     }
 
-    return data ? mapRowToApplication(data) : null
+    return mapRowToApplication(results[0])
   },
 
   /**
@@ -56,20 +50,15 @@ export const applicationsRepository = {
       status?: ApplicationStatus
     },
   ): Promise<Application> {
-    const { data: created, error } = await supabase
-      .from("applications")
-      .insert({
-        user_id: userId,
+    const [created] = await db
+      .insert(applications)
+      .values({
+        userId,
         title: data.title,
-        company_id: data.companyId || null,
-        status: data.status || "pending",
+        companyId: data.companyId || null,
+        status: (data.status || "pending") as "pending" | "in_progress" | "accepted" | "rejected",
       })
-      .select()
-      .single()
-
-    if (error) {
-      throw new Error(`Erreur lors de la création de la candidature: ${error.message}`)
-    }
+      .returning()
 
     return mapRowToApplication(created)
   },
@@ -86,21 +75,26 @@ export const applicationsRepository = {
       status: ApplicationStatus
     }>,
   ): Promise<Application> {
-    const updateData: Record<string, unknown> = {}
+    const updateData: {
+      title?: string
+      companyId?: string | null
+      status?: "pending" | "in_progress" | "accepted" | "rejected"
+    } = {}
+
     if (data.title !== undefined) updateData.title = data.title
-    if (data.companyId !== undefined) updateData.company_id = data.companyId
-    if (data.status !== undefined) updateData.status = data.status
+    if (data.companyId !== undefined) updateData.companyId = data.companyId || null
+    if (data.status !== undefined) {
+      updateData.status = data.status as "pending" | "in_progress" | "accepted" | "rejected"
+    }
 
-    const { data: updated, error } = await supabase
-      .from("applications")
-      .update(updateData)
-      .eq("id", id)
-      .eq("user_id", userId)
-      .select()
-      .single()
+    const [updated] = await db
+      .update(applications)
+      .set(updateData)
+      .where(and(eq(applications.id, id), eq(applications.userId, userId)))
+      .returning()
 
-    if (error) {
-      throw new Error(`Erreur lors de la mise à jour de la candidature: ${error.message}`)
+    if (!updated) {
+      throw new Error(`Candidature non trouvée ou accès non autorisé`)
     }
 
     return mapRowToApplication(updated)
@@ -110,30 +104,24 @@ export const applicationsRepository = {
    * Supprime une candidature
    */
   async delete(id: string, userId: string): Promise<void> {
-    const { error } = await supabase
-      .from("applications")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId)
-
-    if (error) {
-      throw new Error(`Erreur lors de la suppression de la candidature: ${error.message}`)
-    }
+    await db
+      .delete(applications)
+      .where(and(eq(applications.id, id), eq(applications.userId, userId)))
   },
 }
 
 /**
  * Mappe une ligne de la base de données vers le type Application
  */
-function mapRowToApplication(row: Record<string, unknown>): Application {
+function mapRowToApplication(row: typeof applications.$inferSelect): Application {
   return {
-    id: String(row.id),
-    userId: String(row.user_id),
-    companyId: row.company_id ? String(row.company_id) : undefined,
-    title: String(row.title),
+    id: row.id,
+    userId: row.userId,
+    companyId: row.companyId || undefined,
+    title: row.title,
     status: row.status as ApplicationStatus,
-    createdAt: new Date(row.created_at as string),
-    updatedAt: new Date(row.updated_at as string),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   }
 }
 
