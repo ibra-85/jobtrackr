@@ -11,10 +11,30 @@ export const applicationStatusEnum = pgEnum("application_status", [
 
 export const documentTypeEnum = pgEnum("document_type", ["cv", "cover_letter"])
 
+export const contractTypeEnum = pgEnum("contract_type", [
+  "cdi",
+  "cdd",
+  "stage",
+  "alternance",
+  "freelance",
+  "autre",
+])
+
+export const applicationSourceEnum = pgEnum("application_source", [
+  "linkedin",
+  "indeed",
+  "welcome_to_the_jungle",
+  "site_carriere",
+  "cooptation",
+  "email",
+  "autre",
+])
+
 export const activityTypeEnum = pgEnum("activity_type", [
   "application_created",
   "application_updated",
   "application_status_changed",
+  "application_deleted",
   "interview_scheduled",
   "note_added",
 ])
@@ -86,6 +106,15 @@ export const applications = pgTable(
     companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
     title: text("title").notNull(),
     status: applicationStatusEnum("status").notNull().default("pending"),
+    // Champs supplémentaires
+    notes: text("notes"),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    deadline: timestamp("deadline", { withTimezone: true }),
+    contractType: contractTypeEnum("contract_type"),
+    location: text("location"),
+    salaryRange: text("salary_range"),
+    source: applicationSourceEnum("source"),
+    jobUrl: text("job_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

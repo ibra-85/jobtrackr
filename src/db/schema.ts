@@ -9,12 +9,31 @@ export type User = {
 
 export type ApplicationStatus = "pending" | "in_progress" | "accepted" | "rejected"
 
+export type ContractType = "cdi" | "cdd" | "stage" | "alternance" | "freelance" | "autre"
+
+export type ApplicationSource =
+  | "linkedin"
+  | "indeed"
+  | "welcome_to_the_jungle"
+  | "site_carriere"
+  | "cooptation"
+  | "email"
+  | "autre"
+
 export type Application = {
   id: string
   userId: string
   companyId?: string
   title: string
   status: ApplicationStatus
+  notes?: string
+  appliedAt?: Date
+  deadline?: Date
+  contractType?: ContractType
+  location?: string
+  salaryRange?: string
+  source?: ApplicationSource
+  jobUrl?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -42,6 +61,7 @@ export type ActivityType =
   | "application_created"
   | "application_updated"
   | "application_status_changed"
+  | "application_deleted"
   | "interview_scheduled"
   | "note_added"
 

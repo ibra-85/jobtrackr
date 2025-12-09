@@ -22,7 +22,7 @@ const routesWithoutEmailVerification = ["/verify-email", "/forgot-password", "/r
  */
 const isDevelopment = process.env.NODE_ENV === "development"
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Ignorer les routes API et les assets

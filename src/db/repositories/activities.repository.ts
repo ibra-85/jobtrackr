@@ -64,6 +64,7 @@ export const activitiesRepository = {
           | "application_created"
           | "application_updated"
           | "application_status_changed"
+          | "application_deleted"
           | "interview_scheduled"
           | "note_added",
         description: data.description,

@@ -6,7 +6,12 @@
 import { db } from "../index"
 import { applications } from "../drizzle-schema"
 import { eq, and, desc } from "drizzle-orm"
-import type { Application, ApplicationStatus } from "../schema"
+import type {
+  Application,
+  ApplicationStatus,
+  ContractType,
+  ApplicationSource,
+} from "../schema"
 
 export const applicationsRepository = {
   /**
@@ -48,6 +53,14 @@ export const applicationsRepository = {
       title: string
       companyId?: string
       status?: ApplicationStatus
+      notes?: string
+      appliedAt?: Date
+      deadline?: Date
+      contractType?: ContractType
+      location?: string
+      salaryRange?: string
+      source?: ApplicationSource
+      jobUrl?: string
     },
   ): Promise<Application> {
     const [created] = await db
@@ -57,6 +70,14 @@ export const applicationsRepository = {
         title: data.title,
         companyId: data.companyId || null,
         status: (data.status || "pending") as "pending" | "in_progress" | "accepted" | "rejected",
+        notes: data.notes || null,
+        appliedAt: data.appliedAt || null,
+        deadline: data.deadline || null,
+        contractType: data.contractType || null,
+        location: data.location || null,
+        salaryRange: data.salaryRange || null,
+        source: data.source || null,
+        jobUrl: data.jobUrl || null,
       })
       .returning()
 
@@ -73,12 +94,37 @@ export const applicationsRepository = {
       title: string
       companyId: string
       status: ApplicationStatus
+      notes?: string
+      appliedAt?: Date
+      deadline?: Date
+      contractType?: ContractType
+      location?: string
+      salaryRange?: string
+      source?: ApplicationSource
+      jobUrl?: string
     }>,
   ): Promise<Application> {
     const updateData: {
       title?: string
       companyId?: string | null
       status?: "pending" | "in_progress" | "accepted" | "rejected"
+      notes?: string | null
+      appliedAt?: Date | null
+      deadline?: Date | null
+      contractType?: "cdi" | "cdd" | "stage" | "alternance" | "freelance" | "autre" | null
+      location?: string | null
+      salaryRange?: string | null
+      source?:
+        | "linkedin"
+        | "indeed"
+        | "welcome_to_the_jungle"
+        | "site_carriere"
+        | "cooptation"
+        | "email"
+        | "autre"
+        | null
+      jobUrl?: string | null
+      updatedAt?: Date
     } = {}
 
     if (data.title !== undefined) updateData.title = data.title
@@ -86,6 +132,15 @@ export const applicationsRepository = {
     if (data.status !== undefined) {
       updateData.status = data.status as "pending" | "in_progress" | "accepted" | "rejected"
     }
+    if (data.notes !== undefined) updateData.notes = data.notes || null
+    if (data.appliedAt !== undefined) updateData.appliedAt = data.appliedAt || null
+    if (data.deadline !== undefined) updateData.deadline = data.deadline || null
+    if (data.contractType !== undefined) updateData.contractType = data.contractType || null
+    if (data.location !== undefined) updateData.location = data.location || null
+    if (data.salaryRange !== undefined) updateData.salaryRange = data.salaryRange || null
+    if (data.source !== undefined) updateData.source = data.source || null
+    if (data.jobUrl !== undefined) updateData.jobUrl = data.jobUrl || null
+    updateData.updatedAt = new Date()
 
     const [updated] = await db
       .update(applications)
@@ -120,6 +175,14 @@ function mapRowToApplication(row: typeof applications.$inferSelect): Application
     companyId: row.companyId || undefined,
     title: row.title,
     status: row.status as ApplicationStatus,
+    notes: row.notes || undefined,
+    appliedAt: row.appliedAt || undefined,
+    deadline: row.deadline || undefined,
+    contractType: (row.contractType as ContractType | null) || undefined,
+    location: row.location || undefined,
+    salaryRange: row.salaryRange || undefined,
+    source: (row.source as ApplicationSource | null) || undefined,
+    jobUrl: row.jobUrl || undefined,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
