@@ -4,7 +4,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import type { Application, ApplicationStatus, Company } from "@/db/schema"
+import type { Application, ApplicationStatus, Company, ContractType, ApplicationSource } from "@/db/schema"
 import { DataTableColumnHeader } from "./data-table-column-header"
 import { DataTableRowActions } from "./data-table-row-actions"
 
@@ -13,6 +13,25 @@ const statusLabels: Record<ApplicationStatus, string> = {
   in_progress: "En cours",
   accepted: "Acceptée",
   rejected: "Refusée",
+}
+
+const contractTypeLabels: Record<ContractType, string> = {
+  cdi: "CDI",
+  cdd: "CDD",
+  stage: "Stage",
+  alternance: "Alternance",
+  freelance: "Freelance",
+  autre: "Autre",
+}
+
+const sourceLabels: Record<ApplicationSource, string> = {
+  linkedin: "LinkedIn",
+  indeed: "Indeed",
+  welcome_to_the_jungle: "Welcome to the Jungle",
+  site_carriere: "Site carrière",
+  cooptation: "Cooptation",
+  email: "Email",
+  autre: "Autre",
 }
 
 export type ApplicationWithCompany = Application & { company?: Company }
@@ -49,10 +68,9 @@ export const columns: ColumnDef<ApplicationWithCompany>[] = [
       return (
         <Link 
           href={`/applications/${application.id}`} 
-          className="font-semibold hover:text-primary transition-colors inline-flex items-center gap-1.5 group"
+          className="font-semibold hover:text-primary hover:underline transition-colors inline-flex items-center gap-1.5 group"
         >
           <span>{application.title}</span>
-          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-primary">→</span>
         </Link>
       )
     },
@@ -118,6 +136,75 @@ export const columns: ColumnDef<ApplicationWithCompany>[] = [
         return value.includes(statusValue)
       }
       return false
+    },
+  },
+  {
+    accessorKey: "source",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Source" />,
+    cell: ({ row }) => {
+      const source = row.original.source
+      if (!source) {
+        return <span className="text-muted-foreground">—</span>
+      }
+      return (
+        <Badge variant="secondary" className="text-xs">
+          {sourceLabels[source]}
+        </Badge>
+      )
+    },
+    filterFn: (row, id, value) => {
+      if (!value || typeof value === "string") return true
+      const sourceValue = row.original.source
+      if (!sourceValue) return false
+      if (value instanceof Set) {
+        return value.has(sourceValue)
+      }
+      if (Array.isArray(value)) {
+        return value.includes(sourceValue)
+      }
+      return false
+    },
+  },
+  {
+    accessorKey: "contractType",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Contrat" />,
+    cell: ({ row }) => {
+      const contractType = row.original.contractType
+      if (!contractType) {
+        return <span className="text-muted-foreground">—</span>
+      }
+      return (
+        <span className="text-sm">{contractTypeLabels[contractType]}</span>
+      )
+    },
+    filterFn: (row, id, value) => {
+      if (!value || typeof value === "string") return true
+      const contractTypeValue = row.original.contractType
+      if (!contractTypeValue) return false
+      if (value instanceof Set) {
+        return value.has(contractTypeValue)
+      }
+      if (Array.isArray(value)) {
+        return value.includes(contractTypeValue)
+      }
+      return false
+    },
+  },
+  {
+    accessorKey: "location",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Localisation" />,
+    cell: ({ row }) => {
+      const location = row.original.location
+      if (!location) {
+        return <span className="text-muted-foreground">—</span>
+      }
+      return <span className="text-sm">{location}</span>
+    },
+    filterFn: (row, id, value) => {
+      if (!value || typeof value === "string") return true
+      const locationValue = row.original.location?.toLowerCase() || ""
+      const searchValue = (value as string).toLowerCase()
+      return locationValue.includes(searchValue)
     },
   },
   {

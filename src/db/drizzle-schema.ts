@@ -182,18 +182,79 @@ export const companiesRelations = relations(companies, ({ many }) => ({
   applications: many(applications),
 }))
 
-export const applicationsRelations = relations(applications, ({ one, many }) => ({
-  company: one(companies, {
-    fields: [applications.companyId],
-    references: [companies.id],
-  }),
-  activities: many(activities),
-}))
 
 export const activitiesRelations = relations(activities, ({ one }) => ({
   application: one(applications, {
     fields: [activities.applicationId],
     references: [applications.id],
   }),
+}))
+
+// Table pour les notes personnelles (plusieurs notes par candidature)
+export const applicationNotes = pgTable(
+  "application_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    applicationId: uuid("application_id")
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    applicationIdIdx: index("idx_application_notes_application_id").on(table.applicationId),
+    userIdIdx: index("idx_application_notes_user_id").on(table.userId),
+  }),
+)
+
+// Table pour les contacts associés aux candidatures
+export const applicationContacts = pgTable(
+  "application_contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    applicationId: uuid("application_id")
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    role: text("role"), // Ex: "RH", "Recruteur tech", "Manager", etc.
+    email: text("email"),
+    linkedinUrl: text("linkedin_url"),
+    phone: text("phone"),
+    notes: text("notes"), // Notes sur le contact (feedback, affinité, etc.)
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    applicationIdIdx: index("idx_application_contacts_application_id").on(table.applicationId),
+    userIdIdx: index("idx_application_contacts_user_id").on(table.userId),
+  }),
+)
+
+// Relations pour notes et contacts
+export const applicationNotesRelations = relations(applicationNotes, ({ one }) => ({
+  application: one(applications, {
+    fields: [applicationNotes.applicationId],
+    references: [applications.id],
+  }),
+}))
+
+export const applicationContactsRelations = relations(applicationContacts, ({ one }) => ({
+  application: one(applications, {
+    fields: [applicationContacts.applicationId],
+    references: [applications.id],
+  }),
+}))
+
+export const applicationsRelationsWithNotes = relations(applications, ({ one, many }) => ({
+  company: one(companies, {
+    fields: [applications.companyId],
+    references: [companies.id],
+  }),
+  activities: many(activities),
+  notes: many(applicationNotes),
+  contacts: many(applicationContacts),
 }))
 

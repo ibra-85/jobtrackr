@@ -11,6 +11,26 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type { Application, Company, Activity as ActivityType } from "@/db/schema"
 import type { ApplicationStatus } from "@/db/schema"
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts"
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart"
 
 interface ActivityWithApplication extends ActivityType {
   application?: {
@@ -28,6 +48,46 @@ interface DashboardStats {
   accepted: number
   rejected: number
 }
+
+interface ChartData {
+  evolution: { month: string; count: number }[]
+  statusDistribution: { name: string; label: string; value: number }[]
+  monthlyDistribution: { month: string; count: number }[]
+}
+
+// Configuration des couleurs pour les graphiques
+const evolutionChartConfig = {
+  count: {
+    label: "Candidatures",
+    color: "var(--chart-1)",
+  },
+} satisfies ChartConfig
+
+const statusChartConfig = {
+  pending: {
+    label: "En attente",
+    color: "var(--chart-1)",
+  },
+  in_progress: {
+    label: "En cours",
+    color: "var(--chart-2)",
+  },
+  accepted: {
+    label: "Acceptée",
+    color: "var(--chart-3)",
+  },
+  rejected: {
+    label: "Refusée",
+    color: "var(--chart-4)",
+  },
+} satisfies ChartConfig
+
+const monthlyChartConfig = {
+  count: {
+    label: "Candidatures",
+    color: "var(--chart-1)",
+  },
+} satisfies ChartConfig
 
 const statusLabels: Record<ApplicationStatus, string> = {
   pending: "En attente",
@@ -83,6 +143,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recentApplications, setRecentApplications] = useState<(Application & { company?: Company })[]>([])
   const [activities, setActivities] = useState<ActivityWithApplication[]>([])
+  const [chartData, setChartData] = useState<ChartData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -92,10 +153,11 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
-      const [statsRes, recentRes, activitiesRes] = await Promise.all([
+      const [statsRes, recentRes, activitiesRes, chartsRes] = await Promise.all([
         fetch("/api/dashboard/stats"),
         fetch("/api/dashboard/recent"),
         fetch("/api/dashboard/activities"),
+        fetch("/api/dashboard/charts"),
       ])
 
       if (statsRes.ok) {
@@ -111,6 +173,11 @@ export default function DashboardPage() {
       if (activitiesRes.ok) {
         const activitiesData = await activitiesRes.json()
         setActivities(activitiesData)
+      }
+
+      if (chartsRes.ok) {
+        const chartsData = await chartsRes.json()
+        setChartData(chartsData)
       }
     } catch (error) {
       console.error("Erreur lors du chargement du dashboard:", error)
@@ -247,6 +314,152 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Charts Section */}
+        {!loading && chartData && stats && stats.total > 0 && (
+          <section className="grid gap-6 grid-cols-1 lg:grid-cols-3" aria-label="Graphiques">
+            <Card>
+              <CardHeader>
+                <CardTitle>Évolution</CardTitle>
+                <CardDescription>6 derniers mois</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={evolutionChartConfig} className="min-h-[280px] w-full">
+                  <LineChart
+                    accessibilityLayer
+                    data={chartData.evolution}
+                    margin={{
+                      left: 16,
+                      right: 16,
+                      top: 16,
+                      bottom: 16,
+                    }}
+                  >
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="month"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      tickFormatter={(value) => value.slice(0, 3)}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      width={35}
+                    />
+                    <ChartTooltip
+                      cursor={true}
+                      content={<ChartTooltipContent />}
+                    />
+                    <Line
+                      dataKey="count"
+                      type="monotone"
+                      stroke="var(--color-count)"
+                      strokeWidth={2.5}
+                      dot={{ fill: "var(--color-count)", r: 3 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Par statut</CardTitle>
+                <CardDescription>Distribution</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {chartData.statusDistribution.length > 0 ? (
+                  <ChartContainer
+                    config={statusChartConfig}
+                    className="mx-auto min-h-[280px] w-full"
+                  >
+                    <PieChart>
+                      <ChartTooltip
+                        cursor={true}
+                        content={<ChartTooltipContent />}
+                      />
+                      <ChartLegend
+                        content={<ChartLegendContent nameKey="name" />}
+                        className="-mt-2"
+                      />
+                      <Pie
+                        data={chartData.statusDistribution.map((item) => ({
+                          ...item,
+                          fill: `var(--color-${item.name})`,
+                        }))}
+                        dataKey="value"
+                        nameKey="name"
+                        label={false}
+                        labelLine={false}
+                        outerRadius={70}
+                        innerRadius={35}
+                      />
+                    </PieChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="flex items-center justify-center min-h-[280px] text-sm text-muted-foreground">
+                    Aucune donnée disponible
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Par mois</CardTitle>
+                <CardDescription>6 derniers mois</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {chartData.monthlyDistribution.length > 0 ? (
+                  <ChartContainer config={monthlyChartConfig} className="min-h-[280px] w-full">
+                    <BarChart
+                      accessibilityLayer
+                      data={chartData.monthlyDistribution}
+                      margin={{
+                        left: 16,
+                        right: 16,
+                        top: 16,
+                        bottom: 16,
+                      }}
+                    >
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="month"
+                        tickLine={false}
+                        tickMargin={8}
+                        axisLine={false}
+                        tickFormatter={(value) => value.slice(0, 3)}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        width={35}
+                      />
+                      <ChartTooltip
+                        cursor={true}
+                        content={<ChartTooltipContent />}
+                      />
+                      <Bar
+                        dataKey="count"
+                        fill="var(--color-count)"
+                        radius={[6, 6, 0, 0]}
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="flex items-center justify-center min-h-[280px] text-sm text-muted-foreground">
+                    Aucune donnée disponible
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+        )}
 
         {/* Main Content Area */}
         <section className="grid gap-6 lg:grid-cols-2" aria-label="Contenu principal">

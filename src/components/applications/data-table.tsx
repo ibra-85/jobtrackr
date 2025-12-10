@@ -12,6 +12,8 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
 } from "@tanstack/react-table"
 
 import {
@@ -38,6 +40,7 @@ export function DataTable({ columns, data, onCreateClick }: DataTableProps) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
+  const [globalFilter, setGlobalFilter] = React.useState("")
 
   const table = useReactTable({
     data,
@@ -48,14 +51,65 @@ export function DataTable({ columns, data, onCreateClick }: DataTableProps) {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    globalFilterFn: (row, columnId, filterValue) => {
+      const search = filterValue.toLowerCase()
+      const application = row.original
+      
+      // Recherche dans le titre
+      if (application.title?.toLowerCase().includes(search)) return true
+      
+      // Recherche dans l'entreprise
+      if (application.company?.name?.toLowerCase().includes(search)) return true
+      
+      // Recherche dans la localisation
+      if (application.location?.toLowerCase().includes(search)) return true
+      
+      // Recherche dans le statut (label)
+      const statusLabels: Record<string, string> = {
+        pending: "en attente",
+        in_progress: "en cours",
+        accepted: "acceptée",
+        rejected: "refusée",
+      }
+      if (application.status && statusLabels[application.status]?.includes(search)) return true
+      
+      // Recherche dans la source (label)
+      const sourceLabels: Record<string, string> = {
+        linkedin: "linkedin",
+        indeed: "indeed",
+        welcome_to_the_jungle: "welcome to the jungle",
+        site_carriere: "site carrière",
+        cooptation: "cooptation",
+        email: "email",
+        autre: "autre",
+      }
+      if (application.source && sourceLabels[application.source]?.includes(search)) return true
+      
+      // Recherche dans le type de contrat (label)
+      const contractLabels: Record<string, string> = {
+        cdi: "cdi",
+        cdd: "cdd",
+        stage: "stage",
+        alternance: "alternance",
+        freelance: "freelance",
+        autre: "autre",
+      }
+      if (application.contractType && contractLabels[application.contractType]?.includes(search)) return true
+      
+      return false
+    },
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       rowSelection,
+      globalFilter,
     },
+    onGlobalFilterChange: setGlobalFilter,
   })
 
   return (

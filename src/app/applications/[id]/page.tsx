@@ -30,6 +30,8 @@ import type {
   ApplicationSource,
 } from "@/db/schema"
 import { ApplicationForm } from "@/components/applications/application-form"
+import { NotesSection } from "@/components/applications/notes-section"
+import { ContactsSection } from "@/components/applications/contacts-section"
 import { toast } from "sonner"
 
 const statusLabels: Record<ApplicationStatus, string> = {
@@ -332,6 +334,9 @@ export default function ApplicationDetailPage() {
               </CardContent>
             </Card>
 
+            {/* Notes Section */}
+            <NotesSection applicationId={id} />
+
             {/* Activities */}
             <Card>
               <CardHeader>
@@ -368,7 +373,7 @@ export default function ApplicationDetailPage() {
             </Card>
           </div>
 
-          {/* Right Column - Company Info */}
+          {/* Right Column - Company Info & Contacts */}
           <div className="space-y-6">
             {application.company ? (
               <Card>
@@ -414,6 +419,9 @@ export default function ApplicationDetailPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Contacts Section */}
+            <ContactsSection applicationId={id} />
           </div>
         </div>
 

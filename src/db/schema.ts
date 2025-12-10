@@ -75,5 +75,28 @@ export type Activity = {
   createdAt: Date
 }
 
+export type ApplicationNote = {
+  id: string
+  applicationId: string
+  userId: string
+  content: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type ApplicationContact = {
+  id: string
+  applicationId: string
+  userId: string
+  name: string
+  role?: string
+  email?: string
+  linkedinUrl?: string
+  phone?: string
+  notes?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 
 

@@ -22,6 +22,13 @@
       "when": 1765316444068,
       "tag": "0002_striped_lady_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1765396786626,
+      "tag": "0003_loud_steve_rogers",
+      "breakpoints": true
     }
   ]
 }
