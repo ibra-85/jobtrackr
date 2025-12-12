@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Briefcase, LayoutDashboard, FileText, Settings, HelpCircle, Search, FileBadge, Calendar } from "lucide-react"
+import { Briefcase, LayoutDashboard, FileText, Settings, HelpCircle, Search, FileBadge, Calendar, Bell } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -32,6 +32,11 @@ const data = {
       title: "Entretiens",
       url: "/interviews",
       icon: Calendar,
+    },
+    {
+      title: "Rappels",
+      url: "/reminders",
+      icon: Bell,
     },
     {
       title: "CV & Lettres",
@@ -67,7 +72,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
           <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
+              className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
               <Link href="/">
                 <div className="flex aspect-square size-6 items-center justify-center rounded-lg bg-primary text-primary-foreground">

@@ -41,6 +41,7 @@ import { InterviewsSection } from "@/components/applications/interviews-section"
 import { CompanyEditDialog } from "@/components/applications/company-edit-dialog"
 import { FollowUpEmailDialog } from "@/components/applications/follow-up-email-dialog"
 import { AISuggestionsButton } from "@/components/applications/ai-suggestions-button"
+import { MatchingScoreCard } from "@/components/applications/matching-score-card"
 import { toast } from "sonner"
 import {
   getLastInteraction,
@@ -385,6 +386,9 @@ export default function ApplicationDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Matching Score */}
+            <MatchingScoreCard applicationId={id} />
 
             {/* Notes Section */}
             <NotesSection applicationId={id} />

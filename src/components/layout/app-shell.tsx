@@ -16,6 +16,7 @@ interface AppShellProps {
 const pageTitles: Record<string, string> = {
   "/dashboard": "Tableau de bord",
   "/applications": "Candidatures",
+  "/reminders": "Rappels",
   "/documents": "CV & Lettres",
 }
 
