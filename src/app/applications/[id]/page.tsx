@@ -40,6 +40,7 @@ import { ContactsSection } from "@/components/applications/contacts-section"
 import { InterviewsSection } from "@/components/applications/interviews-section"
 import { CompanyEditDialog } from "@/components/applications/company-edit-dialog"
 import { FollowUpEmailDialog } from "@/components/applications/follow-up-email-dialog"
+import { AISuggestionsButton } from "@/components/applications/ai-suggestions-button"
 import { toast } from "sonner"
 import {
   getLastInteraction,
@@ -208,6 +209,7 @@ export default function ApplicationDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <AISuggestionsButton applicationId={id} />
             <Button onClick={() => setFollowUpEmailDialogOpen(true)} variant="outline">
               <Mail className="h-4 w-4 mr-2" />
               Email de relance
@@ -236,6 +238,41 @@ export default function ApplicationDetailPage() {
                   <div className="text-sm font-medium text-muted-foreground mb-1">Titre du poste</div>
                   <div className="text-base">{application.title}</div>
                 </div>
+                {application.company && (
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Entreprise
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="text-base font-medium">{application.company.name}</div>
+                        {application.company.website && (
+                          <a
+                            href={application.company.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
+                          >
+                            {application.company.website}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                        {application.company.sector && (
+                          <div className="text-sm text-muted-foreground mt-1">{application.company.sector}</div>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCompanyEditDialogOpen(true)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Modifier
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <div className="text-sm font-medium text-muted-foreground mb-1">Statut</div>
                   <Badge variant={statusColors[application.status]}>
@@ -353,190 +390,93 @@ export default function ApplicationDetailPage() {
             <NotesSection applicationId={id} />
             <InterviewsSection applicationId={id} />
 
-            {/* Last Interaction & Next Action */}
-            {activities.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Suivi</CardTitle>
-                  <CardDescription>
-                    Dernière interaction et prochaine action suggérée
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {(() => {
-                    const lastInteraction = getLastInteraction(activities)
-                    const daysSince = getDaysSinceLastInteraction(activities)
-                    const nextAction = suggestNextAction(application, activities)
-                    
-                    return (
-                      <>
-                        {lastInteraction && (
-                          <div>
-                            <div className="text-sm font-medium text-muted-foreground mb-1">
-                              Dernière interaction
-                            </div>
-                            <div className="text-sm">
-                              {activityTypeLabels[lastInteraction.type] || lastInteraction.type}
-                              {daysSince !== null && (
-                                <span className="text-muted-foreground ml-2">
-                                  ({formatDaysAgo(daysSince)})
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatDate(lastInteraction.createdAt)}
-                            </p>
-                          </div>
-                        )}
-                        {nextAction && (
-                          <div className="pt-2 border-t">
-                            <div className="text-sm font-medium text-muted-foreground mb-1">
-                              Prochaine action
-                            </div>
-                            <div className={`text-sm ${
-                              nextAction.urgency === "high" 
-                                ? "text-red-600 dark:text-red-400 font-medium"
-                                : nextAction.urgency === "medium"
-                                ? "text-yellow-600 dark:text-yellow-400"
-                                : "text-muted-foreground"
-                            }`}>
-                              {nextAction.action}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )
-                  })()}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Activities */}
+            {/* Suivi & Activités */}
             <Card>
               <CardHeader>
-                <CardTitle>Activités</CardTitle>
+                <CardTitle>Suivi et activités</CardTitle>
                 <CardDescription>
-                  Historique des actions liées à cette candidature
+                  Dernière interaction, prochaine action suggérée et historique des actions
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                {activities.length === 0 ? (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
-                    Aucune activité enregistrée pour cette candidature.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {activities.map((activity) => (
-                      <div key={activity.id} className="flex gap-4 pb-4 border-b last:border-0">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium">
-                              {activityTypeLabels[activity.type] || activity.type}
-                            </span>
+              <CardContent className="space-y-4">
+                {activities.length > 0 && (() => {
+                  const lastInteraction = getLastInteraction(activities)
+                  const daysSince = getDaysSinceLastInteraction(activities)
+                  const nextAction = suggestNextAction(application, activities)
+                  
+                  return (
+                    <>
+                      {lastInteraction && (
+                        <div className="pb-4 border-b">
+                          <div className="text-sm font-medium text-muted-foreground mb-1">
+                            Dernière interaction
                           </div>
-                          <p className="text-sm text-muted-foreground">{activity.description}</p>
+                          <div className="text-sm">
+                            {activityTypeLabels[lastInteraction.type] || lastInteraction.type}
+                            {daysSince !== null && (
+                              <span className="text-muted-foreground ml-2">
+                                ({formatDaysAgo(daysSince)})
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {formatDate(activity.createdAt)}
+                            {formatDate(lastInteraction.createdAt)}
                           </p>
                         </div>
-                      </div>
-                    ))}
+                      )}
+                      {nextAction && (
+                        <div className="pb-4 border-b">
+                          <div className="text-sm font-medium text-muted-foreground mb-1">
+                            Prochaine action suggérée
+                          </div>
+                          <div className={`text-sm ${
+                            nextAction.urgency === "high" 
+                              ? "text-red-600 dark:text-red-400 font-medium"
+                              : nextAction.urgency === "medium"
+                              ? "text-yellow-600 dark:text-yellow-400"
+                              : "text-muted-foreground"
+                          }`}>
+                            {nextAction.action}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground mb-3">
+                    Historique des activités
                   </div>
-                )}
+                  {activities.length === 0 ? (
+                    <div className="text-center py-4 text-sm text-muted-foreground">
+                      Aucune activité enregistrée pour cette candidature.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {activities.map((activity) => (
+                        <div key={activity.id} className="flex gap-4 pb-3 border-b last:border-0">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium">
+                                {activityTypeLabels[activity.type] || activity.type}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{activity.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDate(activity.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Right Column - Company Info & Contacts */}
+          {/* Right Column - Contacts */}
           <div className="space-y-6">
-            {application.company ? (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <Building2 className="h-5 w-5" />
-                      Entreprise
-                    </CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setCompanyEditDialogOpen(true)}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Modifier
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <div className="text-sm font-medium text-muted-foreground mb-1">Nom</div>
-                    <div className="text-base font-medium">{application.company.name}</div>
-                  </div>
-                  {application.company.website && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Site web</div>
-                      <a
-                        href={application.company.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline flex items-center gap-1"
-                      >
-                        {application.company.website}
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  )}
-                  {application.company.sector && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Secteur</div>
-                      <div className="text-sm">{application.company.sector}</div>
-                    </div>
-                  )}
-                  {application.company.size && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Taille</div>
-                      <div className="text-sm">{COMPANY_SIZE_LABELS[application.company.size]}</div>
-                    </div>
-                  )}
-                  {application.company.type && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Type</div>
-                      <div className="text-sm">{COMPANY_TYPE_LABELS[application.company.type]}</div>
-                    </div>
-                  )}
-                  {application.company.location && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        Localisation
-                      </div>
-                      <div className="text-sm">{application.company.location}</div>
-                    </div>
-                  )}
-                  {application.company.workMode && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Mode de travail</div>
-                      <div className="text-sm">{WORK_MODE_LABELS[application.company.workMode]}</div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5" />
-                    Entreprise
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Aucune entreprise associée à cette candidature.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
             {/* Contacts Section */}
             <ContactsSection applicationId={id} />
           </div>

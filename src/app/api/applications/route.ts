@@ -7,6 +7,7 @@ import { CreateApplicationSchema } from "@/lib/validation/schemas"
 import { validateRequest } from "@/lib/validation/helpers"
 import type { ApplicationsListResponse, ApplicationResponse } from "@/types/api"
 import { NotFoundError } from "@/lib/api/errors"
+import { generateAutomaticReminders } from "@/lib/reminders-utils"
 
 /**
  * GET /api/applications
@@ -89,6 +90,9 @@ export async function POST(request: NextRequest) {
       type: "application_created",
       description: `Candidature créée : "${title}"`,
     })
+
+    // Générer automatiquement les rappels
+    await generateAutomaticReminders(session.user.id, application)
 
     // Récupérer la candidature créée avec l'entreprise (JOIN optimisé)
     const applicationWithCompany = await applicationsRepository.getByIdWithCompany(

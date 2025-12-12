@@ -219,6 +219,44 @@ export const UpdateInterviewSchema = CreateInterviewSchema.partial().extend({
     .or(z.literal("")),
 })
 
+// Schémas pour les rappels
+export const ReminderTypeSchema = z.enum(["follow_up", "deadline", "interview", "custom"])
+export const ReminderStatusSchema = z.enum(["pending", "completed", "dismissed"])
+
+// Schéma pour créer un rappel
+export const CreateReminderSchema = z.object({
+  applicationId: z.string().uuid("L'ID de la candidature n'est pas valide").optional(),
+  interviewId: z.string().uuid("L'ID de l'entretien n'est pas valide").optional(),
+  type: ReminderTypeSchema,
+  title: z
+    .string()
+    .min(1, "Le titre du rappel est requis")
+    .max(255, "Le titre est trop long (maximum 255 caractères)")
+    .trim(),
+  description: z.string().max(1000, "La description est trop longue").optional().or(z.literal("")),
+  dueDate: z
+    .string()
+    .refine((val) => !isNaN(Date.parse(val)), "La date du rappel n'est pas valide"),
+  isAutomatic: z.boolean().optional().default(false),
+})
+
+// Schéma pour mettre à jour un rappel
+export const UpdateReminderSchema = z.object({
+  title: z
+    .string()
+    .min(1, "Le titre du rappel est requis")
+    .max(255, "Le titre est trop long (maximum 255 caractères)")
+    .trim()
+    .optional(),
+  description: z.string().max(1000, "La description est trop longue").optional().or(z.literal("")),
+  dueDate: z
+    .string()
+    .refine((val) => val === "" || !isNaN(Date.parse(val)), "La date du rappel n'est pas valide")
+    .optional()
+    .or(z.literal("")),
+  status: ReminderStatusSchema.optional(),
+})
+
 // Types TypeScript inférés depuis les schémas
 export type CreateCompanyInput = z.infer<typeof CreateCompanySchema>
 export type UpdateCompanyInput = z.infer<typeof UpdateCompanySchema>
@@ -231,4 +269,6 @@ export type CreateApplicationContactInput = z.infer<typeof CreateApplicationCont
 export type UpdateApplicationContactInput = z.infer<typeof UpdateApplicationContactSchema>
 export type CreateInterviewInput = z.infer<typeof CreateInterviewSchema>
 export type UpdateInterviewInput = z.infer<typeof UpdateInterviewSchema>
+export type CreateReminderInput = z.infer<typeof CreateReminderSchema>
+export type UpdateReminderInput = z.infer<typeof UpdateReminderSchema>
 

@@ -7,6 +7,7 @@ import { activitiesRepository } from "@/db/repositories/activities.repository"
 import { UpdateApplicationSchema, UpdateApplicationStatusSchema } from "@/lib/validation/schemas"
 import { validateRequest } from "@/lib/validation/helpers"
 import { APPLICATION_STATUS_LABELS } from "@/lib/constants/labels"
+import { generateAutomaticReminders } from "@/lib/reminders-utils"
 import type {
   ApplicationStatus,
   ContractType,
@@ -169,6 +170,11 @@ export async function PUT(
 
     if (!applicationWithCompany) {
       throw new NotFoundError("Candidature")
+    }
+
+    // Régénérer les rappels automatiques si nécessaire (dates modifiées)
+    if (appliedAt !== undefined || deadline !== undefined || status !== undefined) {
+      await generateAutomaticReminders(session.user.id, applicationWithCompany)
     }
 
     return NextResponse.json({

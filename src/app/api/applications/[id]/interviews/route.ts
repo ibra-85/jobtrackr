@@ -6,6 +6,7 @@ import { applicationsRepository } from "@/db/repositories/applications.repositor
 import { activitiesRepository } from "@/db/repositories/activities.repository"
 import { CreateInterviewSchema } from "@/lib/validation/schemas"
 import { validateRequest } from "@/lib/validation/helpers"
+import { generateInterviewReminder } from "@/lib/reminders-utils"
 import type { ApiResponse } from "@/types/api"
 import type { Interview } from "@/db/schema"
 
@@ -99,6 +100,9 @@ export async function POST(
         scheduledAt: scheduledAt,
       },
     })
+
+    // Générer automatiquement un rappel pour l'entretien (1 jour avant)
+    await generateInterviewReminder(session.user.id, interview)
 
     return NextResponse.json(
       {

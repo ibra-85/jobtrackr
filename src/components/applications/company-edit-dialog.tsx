@@ -101,10 +101,10 @@ export function CompanyEditDialog({
           name: name.trim(),
           website: website.trim() || undefined,
           sector: sector.trim() || undefined,
-          size: size || undefined,
-          type: type || undefined,
+          size: size ? (size as CompanySize) : undefined,
+          type: type ? (type as CompanyType) : undefined,
           location: location.trim() || undefined,
-          workMode: workMode || undefined,
+          workMode: workMode ? (workMode as WorkMode) : undefined,
         }),
       })
 
@@ -188,12 +188,12 @@ export function CompanyEditDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="size">Taille</Label>
-              <Select value={size} onValueChange={(value) => setSize(value as CompanySize)}>
+              <Select value={size || undefined} onValueChange={(value) => setSize(value === "none" ? "" : (value as CompanySize))}>
                 <SelectTrigger id="size" disabled={saving}>
                   <SelectValue placeholder="Sélectionner une taille" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucune</SelectItem>
+                  <SelectItem value="none">Aucune</SelectItem>
                   {COMPANY_SIZE_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -204,12 +204,12 @@ export function CompanyEditDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
-              <Select value={type} onValueChange={(value) => setType(value as CompanyType)}>
+              <Select value={type || undefined} onValueChange={(value) => setType(value === "none" ? "" : (value as CompanyType))}>
                 <SelectTrigger id="type" disabled={saving}>
                   <SelectValue placeholder="Sélectionner un type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun</SelectItem>
+                  <SelectItem value="none">Aucun</SelectItem>
                   {COMPANY_TYPE_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -222,12 +222,12 @@ export function CompanyEditDialog({
 
           <div className="space-y-2">
             <Label htmlFor="workMode">Mode de travail</Label>
-            <Select value={workMode} onValueChange={(value) => setWorkMode(value as WorkMode)}>
+            <Select value={workMode || undefined} onValueChange={(value) => setWorkMode(value === "none" ? "" : (value as WorkMode))}>
               <SelectTrigger id="workMode" disabled={saving}>
                 <SelectValue placeholder="Sélectionner un mode de travail" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Aucun</SelectItem>
+                <SelectItem value="none">Aucun</SelectItem>
                 {WORK_MODE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}

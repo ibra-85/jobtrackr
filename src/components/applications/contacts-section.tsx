@@ -202,20 +202,14 @@ export function ContactsSection({ applicationId }: ContactsSectionProps) {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Contacts
-            </CardTitle>
-            <CardDescription>
-              Contacts RH, recruteurs ou managers associés à cette candidature
-            </CardDescription>
-          </div>
-          <Button size="sm" onClick={() => handleOpenDialog()}>
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter
-          </Button>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Contacts
+          </CardTitle>
+          <CardDescription>
+            Contacts RH, recruteurs ou managers associés à cette candidature
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -224,14 +218,12 @@ export function ContactsSection({ applicationId }: ContactsSectionProps) {
             </div>
           ) : contacts.length === 0 ? (
             <div className="text-center py-8 text-sm text-muted-foreground">
-              Aucun contact pour cette candidature.
-              <br />
+              <p className="mb-4">Aucun contact pour cette candidature.</p>
               <Button
-                variant="link"
-                size="sm"
-                className="mt-2"
+                variant="outline"
                 onClick={() => handleOpenDialog()}
               >
+                <Plus className="h-4 w-4 mr-2" />
                 Ajouter un contact
               </Button>
             </div>

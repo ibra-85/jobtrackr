@@ -138,5 +138,24 @@ export type Interview = {
   updatedAt: Date
 }
 
+export type ReminderType = "follow_up" | "deadline" | "interview" | "custom"
+
+export type ReminderStatus = "pending" | "completed" | "dismissed"
+
+export type Reminder = {
+  id: string
+  userId: string
+  applicationId?: string
+  interviewId?: string
+  type: ReminderType
+  title: string
+  description?: string
+  dueDate: Date
+  status: ReminderStatus
+  isAutomatic: boolean
+  createdAt: Date
+  completedAt?: Date
+}
+
 
 

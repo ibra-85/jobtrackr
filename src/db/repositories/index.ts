@@ -10,4 +10,5 @@ export * from "./activities.repository"
 export * from "./notes.repository"
 export * from "./contacts.repository"
 export * from "./interviews.repository"
+export * from "./reminders.repository"
 

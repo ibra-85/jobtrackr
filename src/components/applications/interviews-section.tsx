@@ -116,23 +116,15 @@ export function InterviewsSection({ applicationId }: InterviewsSectionProps) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Entretiens
-            </CardTitle>
-            <CardDescription>
-              {interviews.length === 0
-                ? "Aucun entretien programmé"
-                : `${interviews.length} entretien${interviews.length > 1 ? "s" : ""} programmé${interviews.length > 1 ? "s" : ""}`}
-            </CardDescription>
-          </div>
-          <Button onClick={() => handleOpenDialog()} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter
-          </Button>
-        </div>
+        <CardTitle className="flex items-center gap-2">
+          <Calendar className="h-5 w-5" />
+          Entretiens
+        </CardTitle>
+        <CardDescription>
+          {interviews.length === 0
+            ? "Aucun entretien programmé"
+            : `${interviews.length} entretien${interviews.length > 1 ? "s" : ""} programmé${interviews.length > 1 ? "s" : ""}`}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (

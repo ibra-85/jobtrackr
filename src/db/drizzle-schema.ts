@@ -332,3 +332,55 @@ export const interviewsRelations = relations(interviews, ({ one }) => ({
   }),
 }))
 
+// Enum pour les types de rappels
+export const reminderTypeEnum = pgEnum("reminder_type", [
+  "follow_up", // Relance après candidature
+  "deadline", // Rappel avant deadline
+  "interview", // Rappel avant entretien
+  "custom", // Rappel personnalisé
+])
+
+// Enum pour le statut des rappels
+export const reminderStatusEnum = pgEnum("reminder_status", [
+  "pending", // En attente
+  "completed", // Complété
+  "dismissed", // Ignoré
+])
+
+// Table pour les rappels
+export const reminders = pgTable(
+  "reminders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+    interviewId: uuid("interview_id").references(() => interviews.id, { onDelete: "cascade" }),
+    type: reminderTypeEnum("type").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    dueDate: timestamp("due_date", { withTimezone: true }).notNull(), // Date à laquelle le rappel doit être déclenché
+    status: reminderStatusEnum("status").notNull().default("pending"),
+    isAutomatic: boolean("is_automatic").notNull().default(false), // True si généré automatiquement
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => ({
+    userIdIdx: index("idx_reminders_user_id").on(table.userId),
+    applicationIdIdx: index("idx_reminders_application_id").on(table.applicationId),
+    interviewIdIdx: index("idx_reminders_interview_id").on(table.interviewId),
+    dueDateIdx: index("idx_reminders_due_date").on(table.dueDate),
+    statusIdx: index("idx_reminders_status").on(table.status),
+  }),
+)
+
+export const remindersRelations = relations(reminders, ({ one }) => ({
+  application: one(applications, {
+    fields: [reminders.applicationId],
+    references: [applications.id],
+  }),
+  interview: one(interviews, {
+    fields: [reminders.interviewId],
+    references: [interviews.id],
+  }),
+}))
+

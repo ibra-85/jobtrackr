@@ -176,20 +176,14 @@ export function NotesSection({ applicationId }: NotesSectionProps) {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Notes personnelles
-            </CardTitle>
-            <CardDescription>
-              Notes libres sur l&apos;entreprise, le poste, le ressenti, feedback d&apos;entretien
-            </CardDescription>
-          </div>
-          <Button size="sm" onClick={() => handleOpenDialog()}>
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter
-          </Button>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Notes personnelles
+          </CardTitle>
+          <CardDescription>
+            Notes libres sur l&apos;entreprise, le poste, le ressenti, feedback d&apos;entretien
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -198,14 +192,12 @@ export function NotesSection({ applicationId }: NotesSectionProps) {
             </div>
           ) : notes.length === 0 ? (
             <div className="text-center py-8 text-sm text-muted-foreground">
-              Aucune note pour cette candidature.
-              <br />
+              <p className="mb-4">Aucune note pour cette candidature.</p>
               <Button
-                variant="link"
-                size="sm"
-                className="mt-2"
+                variant="outline"
                 onClick={() => handleOpenDialog()}
               >
+                <Plus className="h-4 w-4 mr-2" />
                 Ajouter une note
               </Button>
             </div>
