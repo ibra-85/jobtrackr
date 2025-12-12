@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type { Application, Company, Activity as ActivityType } from "@/db/schema"
 import type { ApplicationStatus } from "@/db/schema"
+import { APPLICATION_STATUS_LABELS } from "@/lib/constants/labels"
 import {
   LineChart,
   Line,
@@ -89,12 +90,6 @@ const monthlyChartConfig = {
   },
 } satisfies ChartConfig
 
-const statusLabels: Record<ApplicationStatus, string> = {
-  pending: "En attente",
-  in_progress: "En cours",
-  accepted: "Acceptée",
-  rejected: "Refusée",
-}
 
 const statusColors: Record<ApplicationStatus, string> = {
   pending: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20",
@@ -103,14 +98,7 @@ const statusColors: Record<ApplicationStatus, string> = {
   rejected: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
 }
 
-const activityTypeLabels: Record<string, string> = {
-  application_created: "Candidature créée",
-  application_updated: "Candidature modifiée",
-  application_status_changed: "Statut modifié",
-  application_deleted: "Candidature supprimée",
-  interview_scheduled: "Entretien programmé",
-  note_added: "Note ajoutée",
-}
+import { ACTIVITY_TYPE_LABELS } from "@/lib/constants/labels"
 
 const activityBadgeConfig: Record<string, { label: string; className: string }> = {
   application_created: {
@@ -137,6 +125,18 @@ const activityBadgeConfig: Record<string, { label: string; className: string }> 
     label: "Note",
     className: "bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20",
   },
+  contact_added: {
+    label: "Contact ajouté",
+    className: "bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20",
+  },
+  contact_updated: {
+    label: "Contact modifié",
+    className: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20",
+  },
+  contact_deleted: {
+    label: "Contact supprimé",
+    className: "bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-500/20",
+  },
 }
 
 export default function DashboardPage() {
@@ -161,23 +161,23 @@ export default function DashboardPage() {
       ])
 
       if (statsRes.ok) {
-        const statsData = await statsRes.json()
-        setStats(statsData)
+        const statsResult = await statsRes.json()
+        setStats(statsResult.data)
       }
 
       if (recentRes.ok) {
-        const recentData = await recentRes.json()
-        setRecentApplications(recentData)
+        const recentResult = await recentRes.json()
+        setRecentApplications(recentResult.data || [])
       }
 
       if (activitiesRes.ok) {
-        const activitiesData = await activitiesRes.json()
-        setActivities(activitiesData)
+        const activitiesResult = await activitiesRes.json()
+        setActivities(activitiesResult.data || [])
       }
 
       if (chartsRes.ok) {
-        const chartsData = await chartsRes.json()
-        setChartData(chartsData)
+        const chartsResult = await chartsRes.json()
+        setChartData(chartsResult.data)
       }
     } catch (error) {
       console.error("Erreur lors du chargement du dashboard:", error)
@@ -201,7 +201,7 @@ export default function DashboardPage() {
         {/* Header Section */}
         <header className="space-y-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold tracking-tight bg-linear-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
               Tableau de bord
             </h1>
           </div>
@@ -217,14 +217,14 @@ export default function DashboardPage() {
             className={cn(
               "group relative overflow-hidden",
               "hover:shadow-xl hover:shadow-primary/5 transition-all duration-300",
-              "cursor-pointer border-2 border-primary/10 hover:border-primary/30",
-              "bg-gradient-to-br from-card to-card/50",
+              "cursor-pointer",
+              "bg-linear-to-br from-card to-card/50",
               "hover:-translate-y-1",
               "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2"
             )}
             role="listitem"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <Link 
               href="/applications"
               className="block focus:outline-none relative z-10"
@@ -252,14 +252,14 @@ export default function DashboardPage() {
             className={cn(
               "group relative overflow-hidden",
               "hover:shadow-xl hover:shadow-primary/5 transition-all duration-300",
-              "cursor-pointer border-2 border-primary/10 hover:border-primary/30",
-              "bg-gradient-to-br from-card to-card/50",
+              "cursor-pointer",
+              "bg-linear-to-br from-card to-card/50",
               "hover:-translate-y-1",
               "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2"
             )}
             role="listitem"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <Link 
               href="/documents"
               className="block focus:outline-none relative z-10"
@@ -287,13 +287,13 @@ export default function DashboardPage() {
             className={cn(
               "group relative overflow-hidden",
               "hover:shadow-xl hover:shadow-primary/5 transition-all duration-300",
-              "border-2 border-primary/10 hover:border-primary/30",
-              "bg-gradient-to-br from-card to-card/50",
+              "border-2",
+              "bg-linear-to-br from-card to-card/50",
               "hover:-translate-y-1"
             )}
             role="listitem"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-sm font-semibold">Statistiques</CardTitle>
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -544,7 +544,7 @@ export default function DashboardPage() {
                         variant="outline" 
                         className={cn("shrink-0", statusColors[app.status])}
                       >
-                        {statusLabels[app.status]}
+                        {APPLICATION_STATUS_LABELS[app.status]}
                       </Badge>
                     </Link>
                   ))}

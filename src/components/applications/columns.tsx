@@ -4,35 +4,15 @@ import { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Star } from "lucide-react"
 import type { Application, ApplicationStatus, Company, ContractType, ApplicationSource } from "@/db/schema"
+import {
+  APPLICATION_STATUS_LABELS,
+  CONTRACT_TYPE_LABELS,
+  APPLICATION_SOURCE_LABELS,
+} from "@/lib/constants/labels"
 import { DataTableColumnHeader } from "./data-table-column-header"
 import { DataTableRowActions } from "./data-table-row-actions"
-
-const statusLabels: Record<ApplicationStatus, string> = {
-  pending: "En attente",
-  in_progress: "En cours",
-  accepted: "Acceptée",
-  rejected: "Refusée",
-}
-
-const contractTypeLabels: Record<ContractType, string> = {
-  cdi: "CDI",
-  cdd: "CDD",
-  stage: "Stage",
-  alternance: "Alternance",
-  freelance: "Freelance",
-  autre: "Autre",
-}
-
-const sourceLabels: Record<ApplicationSource, string> = {
-  linkedin: "LinkedIn",
-  indeed: "Indeed",
-  welcome_to_the_jungle: "Welcome to the Jungle",
-  site_carriere: "Site carrière",
-  cooptation: "Cooptation",
-  email: "Email",
-  autre: "Autre",
-}
 
 export type ApplicationWithCompany = Application & { company?: Company }
 
@@ -71,6 +51,9 @@ export const columns: ColumnDef<ApplicationWithCompany>[] = [
           className="font-semibold hover:text-primary hover:underline transition-colors inline-flex items-center gap-1.5 group"
         >
           <span>{application.title}</span>
+          {application.priority && (
+            <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+          )}
         </Link>
       )
     },
@@ -122,7 +105,7 @@ export const columns: ColumnDef<ApplicationWithCompany>[] = [
           variant="outline" 
           className={statusColorMap[status]}
         >
-          {statusLabels[status]}
+          {APPLICATION_STATUS_LABELS[status]}
         </Badge>
       )
     },
@@ -148,7 +131,7 @@ export const columns: ColumnDef<ApplicationWithCompany>[] = [
       }
       return (
         <Badge variant="secondary" className="text-xs">
-          {sourceLabels[source]}
+          {APPLICATION_SOURCE_LABELS[source]}
         </Badge>
       )
     },
@@ -174,7 +157,7 @@ export const columns: ColumnDef<ApplicationWithCompany>[] = [
         return <span className="text-muted-foreground">—</span>
       }
       return (
-        <span className="text-sm">{contractTypeLabels[contractType]}</span>
+        <span className="text-sm">{CONTRACT_TYPE_LABELS[contractType]}</span>
       )
     },
     filterFn: (row, id, value) => {

@@ -21,6 +21,7 @@ import {
 import { FileText, Plus, MoreVertical, Edit, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import type { ApplicationNote } from "@/db/schema"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 interface NotesSectionProps {
   applicationId: string
@@ -33,6 +34,8 @@ export function NotesSection({ applicationId }: NotesSectionProps) {
   const [editingNote, setEditingNote] = useState<ApplicationNote | null>(null)
   const [content, setContent] = useState("")
   const [saving, setSaving] = useState(false)
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null)
 
   useEffect(() => {
     fetchNotes()
@@ -43,11 +46,15 @@ export function NotesSection({ applicationId }: NotesSectionProps) {
       setLoading(true)
       const response = await fetch(`/api/applications/${applicationId}/notes`)
       if (response.ok) {
-        const data = await response.json()
-        setNotes(data)
+        const result = await response.json()
+        setNotes(result.data || [])
+      } else {
+        const error = await response.json()
+        toast.error(error.error || "Erreur lors du chargement des notes")
       }
     } catch (error) {
       console.error("Erreur lors du chargement des notes:", error)
+      toast.error("Erreur lors du chargement des notes")
     } finally {
       setLoading(false)
     }
@@ -84,10 +91,15 @@ export function NotesSection({ applicationId }: NotesSectionProps) {
         )
 
         if (!response.ok) {
-          throw new Error("Erreur lors de la mise à jour")
+          const error = await response.json()
+          throw new Error(error.error || "Erreur lors de la mise à jour")
         }
 
+        const result = await response.json()
         toast.success("Note modifiée avec succès")
+        setNotes((prev) =>
+          prev.map((note) => (note.id === editingNote.id ? result.data : note))
+        )
       } else {
         // Créer
         const response = await fetch(`/api/applications/${applicationId}/notes`, {
@@ -115,28 +127,39 @@ export function NotesSection({ applicationId }: NotesSectionProps) {
     }
   }
 
-  const handleDelete = async (noteId: string) => {
-    if (!confirm("Es-tu sûr de vouloir supprimer cette note ?")) {
-      return
-    }
+  const handleDelete = (noteId: string) => {
+    setNoteToDelete(noteId)
+    setConfirmDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!noteToDelete) return
 
     try {
       const response = await fetch(
-        `/api/applications/${applicationId}/notes/${noteId}`,
+        `/api/applications/${applicationId}/notes/${noteToDelete}`,
         {
           method: "DELETE",
         },
       )
 
-      if (!response.ok) {
-        throw new Error("Erreur lors de la suppression")
-      }
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || "Erreur lors de la suppression")
+        }
 
-      toast.success("Note supprimée avec succès")
-      fetchNotes()
+        toast.success("Note supprimée avec succès")
+        setNotes((prev) => prev.filter((note) => note.id !== noteToDelete))
+        fetchNotes()
     } catch (error) {
       console.error("Erreur:", error)
-      toast.error("Une erreur est survenue")
+      if (error instanceof Error) {
+        toast.error(error.message)
+      } else {
+        toast.error("Une erreur est survenue")
+      }
+    } finally {
+      setNoteToDelete(null)
     }
   }
 
@@ -258,6 +281,17 @@ export function NotesSection({ applicationId }: NotesSectionProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmDialogOpen}
+        onOpenChange={setConfirmDialogOpen}
+        title="Supprimer la note"
+        description="Es-tu sûr de vouloir supprimer cette note ? Cette action est irréversible."
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        variant="destructive"
+        onConfirm={confirmDelete}
+      />
     </>
   )
 }

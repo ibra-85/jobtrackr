@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Briefcase, LayoutDashboard, FileText, Settings, HelpCircle, Search, FileBadge } from "lucide-react"
+import { Briefcase, LayoutDashboard, FileText, Settings, HelpCircle, Search, FileBadge, Calendar } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +27,11 @@ const data = {
       title: "Candidatures",
       url: "/applications",
       icon: FileText,
+    },
+    {
+      title: "Entretiens",
+      url: "/interviews",
+      icon: Calendar,
     },
     {
       title: "CV & Lettres",

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
 import { companiesRepository } from "@/db/repositories/companies.repository"
+import type { CompaniesListResponse } from "@/types/api"
 
 /**
  * GET /api/companies/search?q=query
@@ -7,21 +9,22 @@ import { companiesRepository } from "@/db/repositories/companies.repository"
  */
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth(request) // Protéger la route
     const { searchParams } = new URL(request.url)
     const query = searchParams.get("q")
 
     if (!query || query.trim().length === 0) {
-      return NextResponse.json([])
+      return NextResponse.json({
+        data: [],
+      } as CompaniesListResponse)
     }
 
     const companies = await companiesRepository.searchByName(query.trim())
-    return NextResponse.json(companies)
+    return NextResponse.json({
+      data: companies,
+    } as CompaniesListResponse)
   } catch (error) {
-    console.error("Erreur lors de la recherche d'entreprises:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la recherche d'entreprises" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 

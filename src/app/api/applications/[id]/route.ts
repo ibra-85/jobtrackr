@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
+import { NotFoundError } from "@/lib/api/errors"
 import { applicationsRepository } from "@/db/repositories/applications.repository"
 import { companiesRepository } from "@/db/repositories/companies.repository"
 import { activitiesRepository } from "@/db/repositories/activities.repository"
+import { UpdateApplicationSchema, UpdateApplicationStatusSchema } from "@/lib/validation/schemas"
+import { validateRequest } from "@/lib/validation/helpers"
+import { APPLICATION_STATUS_LABELS } from "@/lib/constants/labels"
 import type {
   ApplicationStatus,
   ContractType,
   ApplicationSource,
 } from "@/db/schema"
-
-const statusLabels: Record<ApplicationStatus, string> = {
-  pending: "En attente",
-  in_progress: "En cours",
-  accepted: "Acceptée",
-  rejected: "Refusée",
-}
+import type { ApplicationResponse } from "@/types/api"
 
 /**
  * GET /api/applications/[id]
@@ -25,37 +23,20 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { id } = await params
-    const application = await applicationsRepository.getById(id, session.user.id)
 
+    // Utiliser la méthode optimisée avec JOIN pour éviter N+1 queries
+    const application = await applicationsRepository.getByIdWithCompany(id, session.user.id)
     if (!application) {
-      return NextResponse.json(
-        { error: "Candidature non trouvée" },
-        { status: 404 },
-      )
+      throw new NotFoundError("Candidature")
     }
 
-    // Enrichir avec les informations de l'entreprise
-    let company = undefined
-    if (application.companyId) {
-      company = await companiesRepository.getById(application.companyId)
-    }
-
-    return NextResponse.json({ ...application, company })
+    return NextResponse.json({
+      data: application,
+    } as ApplicationResponse)
   } catch (error) {
-    console.error("Erreur lors de la récupération de la candidature:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la récupération de la candidature" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 
@@ -68,66 +49,43 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { id } = await params
     const body = await request.json()
-    const {
-      title,
-      companyId,
-      status,
-      notes,
-      appliedAt,
-      deadline,
-      contractType,
-      location,
-      salaryRange,
-      source,
-      jobUrl,
-    } = body
 
     // Vérifier que la candidature existe et appartient à l'utilisateur
     const existingApplication = await applicationsRepository.getById(id, session.user.id)
     if (!existingApplication) {
-      return NextResponse.json(
-        { error: "Candidature non trouvée" },
-        { status: 404 },
-      )
+      throw new NotFoundError("Candidature")
     }
 
-    // Validation
-    if (title !== undefined) {
-      if (typeof title !== "string" || title.trim().length === 0) {
-        return NextResponse.json(
-          { error: "Le titre ne peut pas être vide" },
-          { status: 400 },
-        )
-      }
+    // Valider les données avec Zod
+    const validation = validateRequest(UpdateApplicationSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
-    // Vérifier que le statut est valide si fourni
-    const validStatuses: ApplicationStatus[] = ["pending", "in_progress", "accepted", "rejected"]
-    if (status && !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: "Statut invalide" },
-        { status: 400 },
-      )
-    }
+    const {
+      title,
+      companyId,
+      status,
+      priority,
+      notes,
+      appliedAt,
+      deadline,
+      contractType,
+      contractTypes,
+      location,
+      salaryRange,
+      source,
+      jobUrl,
+    } = validation.data
 
     // Vérifier que l'entreprise existe si companyId est fourni
-    if (companyId) {
+    if (companyId && companyId !== "") {
       const company = await companiesRepository.getById(companyId)
       if (!company) {
-        return NextResponse.json(
-          { error: "Entreprise non trouvée" },
-          { status: 404 },
-        )
+        throw new NotFoundError("Entreprise")
       }
     }
 
@@ -135,29 +93,34 @@ export async function PUT(
       title?: string
       companyId?: string
       status?: ApplicationStatus
+      priority?: boolean
       notes?: string
       appliedAt?: Date
       deadline?: Date
       contractType?: ContractType
+      contractTypes?: ContractType[]
       location?: string
       salaryRange?: string
       source?: ApplicationSource
       jobUrl?: string
     } = {}
 
-    if (title !== undefined) updateData.title = title.trim()
-    if (companyId !== undefined) updateData.companyId = companyId
+    if (title !== undefined) updateData.title = title
+    if (companyId !== undefined) updateData.companyId = companyId && companyId !== "" ? companyId : undefined
     if (status !== undefined) updateData.status = status
-    if (notes !== undefined) updateData.notes = notes
-    if (appliedAt !== undefined) updateData.appliedAt = appliedAt ? new Date(appliedAt) : undefined
-    if (deadline !== undefined) updateData.deadline = deadline ? new Date(deadline) : undefined
-    if (contractType !== undefined) updateData.contractType = contractType as ContractType | undefined
-    if (location !== undefined) updateData.location = location
-    if (salaryRange !== undefined) updateData.salaryRange = salaryRange
-    if (source !== undefined) updateData.source = source as ApplicationSource | undefined
-    if (jobUrl !== undefined) updateData.jobUrl = jobUrl
+    if (priority !== undefined) updateData.priority = priority
+    if (notes !== undefined) updateData.notes = notes && notes !== "" ? notes : undefined
+    if (appliedAt !== undefined) updateData.appliedAt = appliedAt && appliedAt !== "" ? new Date(appliedAt) : undefined
+    if (deadline !== undefined) updateData.deadline = deadline && deadline !== "" ? new Date(deadline) : undefined
+    if (contractType !== undefined) updateData.contractType = contractType || undefined // Ancien champ
+    if (contractTypes !== undefined) updateData.contractTypes = contractTypes && contractTypes.length > 0 ? contractTypes : undefined // Nouveau champ // Ancien champ
+    if (contractTypes !== undefined) updateData.contractTypes = contractTypes && contractTypes.length > 0 ? contractTypes : undefined // Nouveau champ
+    if (location !== undefined) updateData.location = location && location !== "" ? location : undefined
+    if (salaryRange !== undefined) updateData.salaryRange = salaryRange && salaryRange !== "" ? salaryRange : undefined
+    if (source !== undefined) updateData.source = source || undefined
+    if (jobUrl !== undefined) updateData.jobUrl = jobUrl && jobUrl !== "" ? jobUrl : undefined
 
-    const application = await applicationsRepository.update(id, session.user.id, updateData)
+    await applicationsRepository.update(id, session.user.id, updateData)
 
     // Créer des activités pour les changements
     if (status !== undefined && existingApplication.status !== status) {
@@ -166,24 +129,22 @@ export async function PUT(
       await activitiesRepository.create(session.user.id, {
         applicationId: id,
         type: "application_status_changed",
-        description: `Statut changé de "${statusLabels[existingApplication.status]}" à "${statusLabels[newStatus]}"`,
+        description: `Statut changé de "${APPLICATION_STATUS_LABELS[existingApplication.status]}" à "${APPLICATION_STATUS_LABELS[newStatus]}"`,
         metadata: {
           oldStatus: existingApplication.status,
           newStatus: newStatus,
         },
       })
-    } else if (title !== undefined && existingApplication.title !== title.trim()) {
+    } else if (title !== undefined && existingApplication.title !== title) {
       // Modification du titre
       await activitiesRepository.create(session.user.id, {
         applicationId: id,
         type: "application_updated",
-        description: `Titre modifié : "${existingApplication.title}" → "${title.trim()}"`,
+        description: `Titre modifié : "${existingApplication.title}" → "${title}"`,
       })
     } else if (companyId !== undefined && existingApplication.companyId !== companyId) {
-      // Changement d'entreprise
-      const oldCompany = existingApplication.companyId
-        ? await companiesRepository.getById(existingApplication.companyId)
-        : null
+      // Changement d'entreprise (utiliser les données déjà chargées)
+      const oldCompany = existingApplication.company || null
       const newCompany = companyId ? await companiesRepository.getById(companyId) : null
       
       await activitiesRepository.create(session.user.id, {
@@ -200,19 +161,21 @@ export async function PUT(
       })
     }
 
-    // Enrichir avec les informations de l'entreprise
-    let company = undefined
-    if (application.companyId) {
-      company = await companiesRepository.getById(application.companyId)
+    // Récupérer la candidature mise à jour avec l'entreprise (JOIN optimisé)
+    const applicationWithCompany = await applicationsRepository.getByIdWithCompany(
+      id,
+      session.user.id
+    )
+
+    if (!applicationWithCompany) {
+      throw new NotFoundError("Candidature")
     }
 
-    return NextResponse.json({ ...application, company })
+    return NextResponse.json({
+      data: applicationWithCompany,
+    } as ApplicationResponse)
   } catch (error) {
-    console.error("Erreur lors de la mise à jour de la candidature:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la mise à jour de la candidature" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 
@@ -225,23 +188,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { id } = await params
 
     // Vérifier que la candidature existe et appartient à l'utilisateur
     const existingApplication = await applicationsRepository.getById(id, session.user.id)
     if (!existingApplication) {
-      return NextResponse.json(
-        { error: "Candidature non trouvée" },
-        { status: 404 },
-      )
+      throw new NotFoundError("Candidature")
     }
 
     // Créer une activité pour la suppression AVANT de supprimer la candidature
@@ -257,13 +210,11 @@ export async function DELETE(
 
     await applicationsRepository.delete(id, session.user.id)
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      data: { success: true },
+    })
   } catch (error) {
-    console.error("Erreur lors de la suppression de la candidature:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la suppression de la candidature" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 

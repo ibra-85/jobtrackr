@@ -66,7 +66,10 @@ export const activitiesRepository = {
           | "application_status_changed"
           | "application_deleted"
           | "interview_scheduled"
-          | "note_added",
+          | "note_added"
+          | "contact_added"
+          | "contact_updated"
+          | "contact_deleted",
         description: data.description,
         metadata: data.metadata || null,
       })

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
+import { NotFoundError } from "@/lib/api/errors"
 import { contactsRepository } from "@/db/repositories/contacts.repository"
 import { activitiesRepository } from "@/db/repositories/activities.repository"
+import { UpdateApplicationContactSchema } from "@/lib/validation/schemas"
+import { validateRequest } from "@/lib/validation/helpers"
+import type { ApiResponse } from "@/types/api"
+import type { ApplicationContact } from "@/db/schema"
 
 /**
  * PUT /api/applications/[id]/contacts/[contactId]
@@ -12,25 +17,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string; contactId: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { contactId } = await params
 
     const body = await request.json()
-    const { name, role, email, linkedinUrl, phone, notes } = body
 
-    if (name !== undefined && (typeof name !== "string" || name.trim().length === 0)) {
-      return NextResponse.json(
-        { error: "Le nom du contact ne peut pas être vide" },
-        { status: 400 },
-      )
+    // Valider les données avec Zod
+    const validation = validateRequest(UpdateApplicationContactSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
+
+    const { name, role, email, linkedinUrl, phone, notes } = validation.data
 
     const updateData: {
       name?: string
@@ -41,32 +39,27 @@ export async function PUT(
       notes?: string
     } = {}
 
-    if (name !== undefined) updateData.name = name.trim()
-    if (role !== undefined) updateData.role = role?.trim() || undefined
-    if (email !== undefined) updateData.email = email?.trim() || undefined
-    if (linkedinUrl !== undefined) updateData.linkedinUrl = linkedinUrl?.trim() || undefined
-    if (phone !== undefined) updateData.phone = phone?.trim() || undefined
-    if (notes !== undefined) updateData.notes = notes?.trim() || undefined
+    if (name !== undefined) updateData.name = name
+    if (role !== undefined) updateData.role = role && role !== "" ? role : undefined
+    if (email !== undefined) updateData.email = email && email !== "" ? email : undefined
+    if (linkedinUrl !== undefined) updateData.linkedinUrl = linkedinUrl && linkedinUrl !== "" ? linkedinUrl : undefined
+    if (phone !== undefined) updateData.phone = phone && phone !== "" ? phone : undefined
+    if (notes !== undefined) updateData.notes = notes && notes !== "" ? notes : undefined
 
     const contact = await contactsRepository.update(contactId, session.user.id, updateData)
 
     // Créer une activité pour la modification de contact
     await activitiesRepository.create(session.user.id, {
       applicationId: contact.applicationId,
-      type: "note_added",
+      type: "contact_updated",
       description: `Contact modifié : ${contact.name}`,
     })
 
-    return NextResponse.json(contact)
+    return NextResponse.json({
+      data: contact,
+    } as ApiResponse<ApplicationContact>)
   } catch (error) {
-    console.error("Erreur lors de la mise à jour du contact:", error)
-    if (error instanceof Error && error.message.includes("non trouvé")) {
-      return NextResponse.json({ error: error.message }, { status: 404 })
-    }
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la mise à jour du contact" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 
@@ -79,20 +72,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; contactId: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { contactId } = await params
 
     // Récupérer le contact avant suppression pour avoir l'applicationId et le nom
     const contact = await contactsRepository.getById(contactId, session.user.id)
     if (!contact) {
-      return NextResponse.json({ error: "Contact non trouvé" }, { status: 404 })
+      throw new NotFoundError("Contact")
     }
 
     await contactsRepository.delete(contactId, session.user.id)
@@ -100,17 +86,15 @@ export async function DELETE(
     // Créer une activité pour la suppression de contact
     await activitiesRepository.create(session.user.id, {
       applicationId: contact.applicationId,
-      type: "note_added",
+      type: "contact_deleted",
       description: `Contact supprimé : ${contact.name}`,
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      data: { success: true },
+    })
   } catch (error) {
-    console.error("Erreur lors de la suppression du contact:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la suppression du contact" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 

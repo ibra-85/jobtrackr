@@ -9,7 +9,7 @@ import { TrustedBySection } from "./trusted-by-section"
 
 export function HeroSection() {
   return (
-    <div className="relative min-h-screen text-white overflow-hidden" style={{ backgroundColor: "#09090b" }}>
+    <div className="relative min-h-screen text-white overflow-hidden bg-zinc-950">
       {/* WebGL shader background - behind everything */}
       <HeroShaderBackground />
 

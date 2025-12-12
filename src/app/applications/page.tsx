@@ -19,13 +19,16 @@ export default function ApplicationsPage() {
       setLoading(true)
       const response = await fetch("/api/applications")
       if (response.ok) {
-        const data = await response.json()
-        setApplications(data)
+        const result = await response.json()
+        setApplications(result.data || [])
       } else {
-        console.error("Erreur lors du chargement des candidatures")
+        const error = await response.json()
+        console.error("Erreur lors du chargement des candidatures:", error.error)
+        // TODO: Afficher un toast d'erreur à l'utilisateur
       }
     } catch (error) {
       console.error("Erreur lors du chargement des candidatures:", error)
+      // TODO: Afficher un toast d'erreur à l'utilisateur
     } finally {
       setLoading(false)
     }
@@ -41,7 +44,7 @@ export default function ApplicationsPage() {
         {/* Header Section */}
         <header className="space-y-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold tracking-tight bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
               Candidatures
             </h1>
           </div>
@@ -52,7 +55,7 @@ export default function ApplicationsPage() {
           {/* Stats Cards */}
           {!loading && applications.length > 0 && (
             <div className="grid gap-4 md:grid-cols-4 mt-6">
-              <Card className="p-4 border-primary/10 bg-gradient-to-br from-card to-card/50">
+              <Card className="p-4 bg-linear-to-br from-card to-card/50">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Total</p>
@@ -63,7 +66,7 @@ export default function ApplicationsPage() {
                   </div>
                 </div>
               </Card>
-              <Card className="p-4 border-primary/10 bg-gradient-to-br from-card to-card/50">
+              <Card className="p-4 bg-linear-to-br from-card to-card/50">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">En attente</p>
@@ -76,7 +79,7 @@ export default function ApplicationsPage() {
                   </div>
                 </div>
               </Card>
-              <Card className="p-4 border-primary/10 bg-gradient-to-br from-card to-card/50">
+              <Card className="p-4 bg-linear-to-br from-card to-card/50">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">En cours</p>
@@ -89,7 +92,7 @@ export default function ApplicationsPage() {
                   </div>
                 </div>
               </Card>
-              <Card className="p-4 border-primary/10 bg-gradient-to-br from-card to-card/50">
+              <Card className="p-4 bg-linear-to-br from-card to-card/50">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Acceptées</p>

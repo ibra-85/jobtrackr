@@ -26,10 +26,12 @@ export type Application = {
   companyId?: string
   title: string
   status: ApplicationStatus
+  priority?: boolean // Priorité manuelle ou suggérée
   notes?: string
   appliedAt?: Date
   deadline?: Date
-  contractType?: ContractType
+  contractType?: ContractType // Ancien champ pour compatibilité
+  contractTypes?: ContractType[] // Nouveau champ pour plusieurs types
   location?: string
   salaryRange?: string
   source?: ApplicationSource
@@ -38,10 +40,21 @@ export type Application = {
   updatedAt: Date
 }
 
+export type CompanySize = "1-10" | "11-50" | "51-200" | "201-500" | "501-1000" | "1000+"
+
+export type CompanyType = "startup" | "pme" | "scale_up" | "grand_groupe" | "autre"
+
+export type WorkMode = "remote" | "hybrid" | "on_site"
+
 export type Company = {
   id: string
   name: string
   website?: string
+  sector?: string
+  size?: CompanySize
+  type?: CompanyType
+  location?: string
+  workMode?: WorkMode
   createdAt: Date
 }
 
@@ -64,6 +77,9 @@ export type ActivityType =
   | "application_deleted"
   | "interview_scheduled"
   | "note_added"
+  | "contact_added"
+  | "contact_updated"
+  | "contact_deleted"
 
 export type Activity = {
   id: string
@@ -94,6 +110,27 @@ export type ApplicationContact = {
   linkedinUrl?: string
   phone?: string
   notes?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type InterviewStatus = "scheduled" | "completed" | "cancelled" | "rescheduled"
+
+export type InterviewType = "phone" | "video" | "on_site" | "technical" | "hr" | "final" | "autre"
+
+export type Interview = {
+  id: string
+  applicationId: string
+  userId: string
+  title: string
+  scheduledAt: Date
+  duration?: string
+  location?: string
+  type?: InterviewType
+  interviewerName?: string
+  interviewerEmail?: string
+  notes?: string
+  status: InterviewStatus
   createdAt: Date
   updatedAt: Date
 }

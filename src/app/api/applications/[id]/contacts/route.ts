@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
+import { NotFoundError } from "@/lib/api/errors"
 import { contactsRepository } from "@/db/repositories/contacts.repository"
 import { applicationsRepository } from "@/db/repositories/applications.repository"
 import { activitiesRepository } from "@/db/repositories/activities.repository"
+import { CreateApplicationContactSchema } from "@/lib/validation/schemas"
+import { validateRequest } from "@/lib/validation/helpers"
+import type { ApiResponse } from "@/types/api"
+import type { ApplicationContact } from "@/db/schema"
 
 /**
  * GET /api/applications/[id]/contacts
@@ -13,34 +18,22 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { id } = await params
 
     // Vérifier que la candidature existe et appartient à l'utilisateur
     const application = await applicationsRepository.getById(id, session.user.id)
     if (!application) {
-      return NextResponse.json(
-        { error: "Candidature non trouvée" },
-        { status: 404 },
-      )
+      throw new NotFoundError("Candidature")
     }
 
     const contacts = await contactsRepository.getByApplicationId(id, session.user.id)
 
-    return NextResponse.json(contacts)
+    return NextResponse.json({
+      data: contacts,
+    } as ApiResponse<ApplicationContact[]>)
   } catch (error) {
-    console.error("Erreur lors de la récupération des contacts:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la récupération des contacts" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 
@@ -53,58 +46,49 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { id } = await params
 
     // Vérifier que la candidature existe et appartient à l'utilisateur
     const application = await applicationsRepository.getById(id, session.user.id)
     if (!application) {
-      return NextResponse.json(
-        { error: "Candidature non trouvée" },
-        { status: 404 },
-      )
+      throw new NotFoundError("Candidature")
     }
 
     const body = await request.json()
-    const { name, role, email, linkedinUrl, phone, notes } = body
 
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Le nom du contact est requis" },
-        { status: 400 },
-      )
+    // Valider les données avec Zod
+    const validation = validateRequest(CreateApplicationContactSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
+    const { name, role, email, linkedinUrl, phone, notes } = validation.data
+
     const contact = await contactsRepository.create(id, session.user.id, {
-      name: name.trim(),
-      role: role?.trim() || undefined,
-      email: email?.trim() || undefined,
-      linkedinUrl: linkedinUrl?.trim() || undefined,
-      phone: phone?.trim() || undefined,
-      notes: notes?.trim() || undefined,
+      name,
+      role: role && role !== "" ? role : undefined,
+      email: email && email !== "" ? email : undefined,
+      linkedinUrl: linkedinUrl && linkedinUrl !== "" ? linkedinUrl : undefined,
+      phone: phone && phone !== "" ? phone : undefined,
+      notes: notes && notes !== "" ? notes : undefined,
     })
 
     // Créer une activité pour l'ajout de contact
     await activitiesRepository.create(session.user.id, {
       applicationId: id,
-      type: "note_added",
-      description: `Contact ajouté : ${name.trim()}`,
+      type: "contact_added",
+      description: `Contact ajouté : ${name}`,
     })
 
-    return NextResponse.json(contact, { status: 201 })
-  } catch (error) {
-    console.error("Erreur lors de la création du contact:", error)
     return NextResponse.json(
-      { error: "Erreur serveur lors de la création du contact" },
-      { status: 500 },
+      {
+        data: contact,
+      } as ApiResponse<ApplicationContact>,
+      { status: 201 }
     )
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 

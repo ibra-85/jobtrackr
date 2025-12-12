@@ -1,22 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
 import { applicationsRepository } from "@/db/repositories/applications.repository"
+import { APPLICATION_STATUS_LABELS } from "@/lib/constants/labels"
 import type { ApplicationStatus } from "@/db/schema"
+import type { ApiResponse } from "@/types/api"
 
 /**
  * GET /api/dashboard/charts
  * Récupère les données pour les graphiques du dashboard
+ * TODO: Optimiser avec requêtes SQL agrégées au lieu de charger toutes les données
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
+    const session = await requireAuth(request)
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    // NOTE: Charge toutes les candidatures - à optimiser avec SQL GROUP BY
     const applications = await applicationsRepository.getAllByUserId(session.user.id)
 
     // Calculer l'évolution par mois (6 derniers mois)
@@ -62,10 +60,10 @@ export async function GET(request: NextRequest) {
     })
 
     const statusDistribution = [
-      { name: "pending", label: "En attente", value: statusCounts.pending },
-      { name: "in_progress", label: "En cours", value: statusCounts.in_progress },
-      { name: "accepted", label: "Acceptée", value: statusCounts.accepted },
-      { name: "rejected", label: "Refusée", value: statusCounts.rejected },
+      { name: "pending", label: APPLICATION_STATUS_LABELS.pending, value: statusCounts.pending },
+      { name: "in_progress", label: APPLICATION_STATUS_LABELS.in_progress, value: statusCounts.in_progress },
+      { name: "accepted", label: APPLICATION_STATUS_LABELS.accepted, value: statusCounts.accepted },
+      { name: "rejected", label: APPLICATION_STATUS_LABELS.rejected, value: statusCounts.rejected },
     ].filter((item) => item.value > 0)
 
     // Répartition par mois (candidatures créées)
@@ -89,16 +87,18 @@ export async function GET(request: NextRequest) {
       })
 
     return NextResponse.json({
-      evolution: evolutionData,
-      statusDistribution,
-      monthlyDistribution: monthlyBarData,
-    })
+      data: {
+        evolution: evolutionData,
+        statusDistribution,
+        monthlyDistribution: monthlyBarData,
+      },
+    } as ApiResponse<{
+      evolution: { month: string; count: number }[]
+      statusDistribution: { name: string; label: string; value: number }[]
+      monthlyDistribution: { month: string; count: number }[]
+    }>)
   } catch (error) {
-    console.error("Erreur lors de la récupération des données graphiques:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la récupération des données graphiques" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 

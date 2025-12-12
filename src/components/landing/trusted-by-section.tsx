@@ -25,8 +25,8 @@ export function TrustedBySection() {
           </Link>
         </div>
         <div className="group-hover:blur-xs mx-auto mt-12 grid max-w-2xl grid-cols-4 gap-x-12 gap-y-8 transition-all duration-500 group-hover:opacity-50 sm:gap-x-16 sm:gap-y-14">
-          {companies.map((company, index) => (
-            <div key={index} className="flex">
+                      {companies.map((company) => (
+                        <div key={company} className="flex">
               <div className="mx-auto h-5 w-fit text-zinc-500 text-xs font-semibold">{company}</div>
             </div>
           ))}

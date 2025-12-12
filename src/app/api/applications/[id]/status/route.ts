@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
+import { NotFoundError } from "@/lib/api/errors"
 import { applicationsRepository } from "@/db/repositories/applications.repository"
 import { companiesRepository } from "@/db/repositories/companies.repository"
 import { activitiesRepository } from "@/db/repositories/activities.repository"
+import { UpdateApplicationStatusSchema } from "@/lib/validation/schemas"
+import { validateRequest } from "@/lib/validation/helpers"
+import { APPLICATION_STATUS_LABELS } from "@/lib/constants/labels"
 import type { ApplicationStatus } from "@/db/schema"
-
-const statusLabels: Record<ApplicationStatus, string> = {
-  pending: "En attente",
-  in_progress: "En cours",
-  accepted: "Acceptée",
-  rejected: "Refusée",
-}
+import type { ApplicationResponse } from "@/types/api"
 
 /**
  * PATCH /api/applications/[id]/status
@@ -21,47 +19,38 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { id } = await params
     const body = await request.json()
-    const { status } = body
 
-    // Vérifier que le statut est valide
-    const validStatuses: ApplicationStatus[] = ["pending", "in_progress", "accepted", "rejected"]
-    if (!status || !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: "Statut invalide" },
-        { status: 400 },
-      )
+    // Valider les données avec Zod
+    const validation = validateRequest(UpdateApplicationStatusSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
+
+    const { status } = validation.data
 
     // Récupérer la candidature existante
     const existingApplication = await applicationsRepository.getById(id, session.user.id)
     if (!existingApplication) {
-      return NextResponse.json(
-        { error: "Candidature non trouvée" },
-        { status: 404 },
-      )
+      throw new NotFoundError("Candidature")
     }
 
     // Si le statut n'a pas changé, ne rien faire
     if (existingApplication.status === status) {
-      const company = existingApplication.companyId
-        ? await companiesRepository.getById(existingApplication.companyId)
-        : undefined
-      return NextResponse.json({ ...existingApplication, company })
+      let company = undefined
+      if (existingApplication.companyId) {
+        company = await companiesRepository.getById(existingApplication.companyId)
+      }
+      return NextResponse.json({
+        data: { ...existingApplication, company },
+      } as ApplicationResponse)
     }
 
     const oldStatus = existingApplication.status
-    const oldStatusLabel = statusLabels[oldStatus]
-    const newStatusLabel = statusLabels[status]
+    const oldStatusLabel = APPLICATION_STATUS_LABELS[oldStatus]
+    const newStatusLabel = APPLICATION_STATUS_LABELS[status]
 
     // Mettre à jour le statut
     const updatedApplication = await applicationsRepository.update(id, session.user.id, {
@@ -85,13 +74,11 @@ export async function PATCH(
       company = await companiesRepository.getById(updatedApplication.companyId)
     }
 
-    return NextResponse.json({ ...updatedApplication, company })
+    return NextResponse.json({
+      data: { ...updatedApplication, company },
+    } as ApplicationResponse)
   } catch (error) {
-    console.error("Erreur lors de la mise à jour du statut:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la mise à jour du statut" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 

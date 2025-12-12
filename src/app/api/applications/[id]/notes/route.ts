@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
+import { NotFoundError } from "@/lib/api/errors"
 import { notesRepository } from "@/db/repositories/notes.repository"
 import { applicationsRepository } from "@/db/repositories/applications.repository"
 import { activitiesRepository } from "@/db/repositories/activities.repository"
+import { CreateApplicationNoteSchema } from "@/lib/validation/schemas"
+import { validateRequest } from "@/lib/validation/helpers"
+import type { ApiResponse } from "@/types/api"
+import type { ApplicationNote } from "@/db/schema"
 
 /**
  * GET /api/applications/[id]/notes
@@ -13,34 +18,22 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { id } = await params
 
     // Vérifier que la candidature existe et appartient à l'utilisateur
     const application = await applicationsRepository.getById(id, session.user.id)
     if (!application) {
-      return NextResponse.json(
-        { error: "Candidature non trouvée" },
-        { status: 404 },
-      )
+      throw new NotFoundError("Candidature")
     }
 
     const notes = await notesRepository.getByApplicationId(id, session.user.id)
 
-    return NextResponse.json(notes)
+    return NextResponse.json({
+      data: notes,
+    } as ApiResponse<ApplicationNote[]>)
   } catch (error) {
-    console.error("Erreur lors de la récupération des notes:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la récupération des notes" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 
@@ -53,53 +46,44 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { id } = await params
 
     // Vérifier que la candidature existe et appartient à l'utilisateur
     const application = await applicationsRepository.getById(id, session.user.id)
     if (!application) {
-      return NextResponse.json(
-        { error: "Candidature non trouvée" },
-        { status: 404 },
-      )
+      throw new NotFoundError("Candidature")
     }
 
     const body = await request.json()
-    const { content } = body
 
-    if (!content || typeof content !== "string" || content.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Le contenu de la note est requis" },
-        { status: 400 },
-      )
+    // Valider les données avec Zod
+    const validation = validateRequest(CreateApplicationNoteSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
+    const { content } = validation.data
+
     const note = await notesRepository.create(id, session.user.id, {
-      content: content.trim(),
+      content,
     })
 
     // Créer une activité pour l'ajout de note
     await activitiesRepository.create(session.user.id, {
       applicationId: id,
       type: "note_added",
-      description: `Note ajoutée : "${content.trim().substring(0, 50)}${content.trim().length > 50 ? "..." : ""}"`,
+      description: `Note ajoutée : "${content.substring(0, 50)}${content.length > 50 ? "..." : ""}"`,
     })
 
-    return NextResponse.json(note, { status: 201 })
-  } catch (error) {
-    console.error("Erreur lors de la création de la note:", error)
     return NextResponse.json(
-      { error: "Erreur serveur lors de la création de la note" },
-      { status: 500 },
+      {
+        data: note,
+      } as ApiResponse<ApplicationNote>,
+      { status: 201 }
     )
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 

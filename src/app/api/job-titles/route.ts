@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { readFile, stat } from "fs/promises"
 import { join } from "path"
+import { jobTitlesCache } from "@/lib/cache"
 
 interface JobTitle {
   code_ogr: number
@@ -24,12 +25,6 @@ interface JobTitleFormatted {
   codeRome: string
 }
 
-// Cache en mémoire pour éviter de relire le fichier à chaque requête
-let cachedJobTitles: JobTitleFormatted[] | null = null
-let cacheTimestamp: number = 0
-let fileModificationTime: number = 0
-const CACHE_DURATION = 1000 * 60 * 60 // 1 heure
-
 /**
  * Charge le fichier JSON et le met en cache
  */
@@ -37,18 +32,15 @@ async function loadJobTitles(): Promise<JobTitleFormatted[]> {
   const filePath = join(process.cwd(), "data", "job-titles.json")
 
   try {
+    // Vérifier le cache centralisé
+    const cached = jobTitlesCache.get("all")
+    if (cached) {
+      return cached as JobTitleFormatted[]
+    }
+
     // Vérifier la date de modification du fichier
     const stats = await stat(filePath)
     const currentModTime = stats.mtimeMs
-
-    // Si le cache est valide et le fichier n'a pas changé, retourner le cache
-    if (
-      cachedJobTitles &&
-      Date.now() - cacheTimestamp < CACHE_DURATION &&
-      currentModTime === fileModificationTime
-    ) {
-      return cachedJobTitles
-    }
 
     // Lire le fichier JSON
     let fileContent: string
@@ -99,10 +91,8 @@ async function loadJobTitles(): Promise<JobTitleFormatted[]> {
         codeRome: job.code_rome_parent,
       }))
 
-    // Mettre en cache
-    cachedJobTitles = formatted
-    cacheTimestamp = Date.now()
-    fileModificationTime = currentModTime
+    // Mettre en cache centralisé (TTL: 1 heure)
+    jobTitlesCache.set("all", formatted, 1000 * 60 * 60)
 
     console.log(`✅ ${formatted.length} postes chargés et mis en cache`)
 
@@ -110,9 +100,10 @@ async function loadJobTitles(): Promise<JobTitleFormatted[]> {
   } catch (error) {
     console.error("Erreur lors du chargement des postes:", error)
     // Retourner le cache si disponible même s'il est expiré
-    if (cachedJobTitles) {
+    const cached = jobTitlesCache.get("all")
+    if (cached) {
       console.warn("Utilisation du cache expiré en cas d'erreur")
-      return cachedJobTitles
+      return cached as JobTitleFormatted[]
     }
     throw error
   }

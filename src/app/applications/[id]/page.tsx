@@ -19,6 +19,7 @@ import {
   DollarSign,
   FileText,
   Link as LinkIcon,
+  Star,
 } from "lucide-react"
 import Link from "next/link"
 import type {
@@ -28,37 +29,29 @@ import type {
   Activity,
   ContractType,
   ApplicationSource,
+  CompanySize,
+  CompanyType,
+  WorkMode,
 } from "@/db/schema"
 import { ApplicationForm } from "@/components/applications/application-form"
 import { NotesSection } from "@/components/applications/notes-section"
 import { ContactsSection } from "@/components/applications/contacts-section"
+import { InterviewsSection } from "@/components/applications/interviews-section"
 import { toast } from "sonner"
-
-const statusLabels: Record<ApplicationStatus, string> = {
-  pending: "En attente",
-  in_progress: "En cours",
-  accepted: "Acceptée",
-  rejected: "Refusée",
-}
-
-const contractTypeLabels: Record<ContractType, string> = {
-  cdi: "CDI",
-  cdd: "CDD",
-  stage: "Stage",
-  alternance: "Alternance",
-  freelance: "Freelance",
-  autre: "Autre",
-}
-
-const sourceLabels: Record<ApplicationSource, string> = {
-  linkedin: "LinkedIn",
-  indeed: "Indeed",
-  welcome_to_the_jungle: "Welcome to the Jungle",
-  site_carriere: "Site carrière",
-  cooptation: "Cooptation",
-  email: "Email",
-  autre: "Autre",
-}
+import {
+  getLastInteraction,
+  getDaysSinceLastInteraction,
+  suggestNextAction,
+  formatDaysAgo,
+} from "@/lib/applications-utils"
+import {
+  APPLICATION_STATUS_LABELS,
+  CONTRACT_TYPE_LABELS,
+  APPLICATION_SOURCE_LABELS,
+  COMPANY_SIZE_LABELS,
+  COMPANY_TYPE_LABELS,
+  WORK_MODE_LABELS,
+} from "@/lib/constants/labels"
 
 const statusColors: Record<ApplicationStatus, "default" | "secondary" | "outline"> = {
   pending: "secondary",
@@ -97,8 +90,8 @@ export default function ApplicationDetailPage() {
       setLoading(true)
       const response = await fetch(`/api/applications/${id}`)
       if (response.ok) {
-        const data = await response.json()
-        setApplication(data)
+        const result = await response.json()
+        setApplication(result.data)
       } else if (response.status === 404) {
         toast.error("Candidature non trouvée")
         router.push("/applications")
@@ -117,11 +110,12 @@ export default function ApplicationDetailPage() {
     try {
       const response = await fetch(`/api/applications/${id}/activities`)
       if (response.ok) {
-        const data = await response.json()
-        setActivities(data)
+        const result = await response.json()
+        setActivities(result.data || [])
       }
     } catch (error) {
       console.error("Erreur lors du chargement des activités:", error)
+      setActivities([])
     }
   }
 
@@ -191,11 +185,21 @@ export default function ApplicationDetailPage() {
                 Retour
               </Link>
             </Button>
-            <h1 className="text-3xl font-bold tracking-tight">{application.title}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight">{application.title}</h1>
+              {application.priority && (
+                <Star className="h-5 w-5 fill-yellow-500 text-yellow-500" />
+              )}
+            </div>
             <div className="flex items-center gap-2 mt-2">
               <Badge variant={statusColors[application.status]}>
-                {statusLabels[application.status]}
+                {APPLICATION_STATUS_LABELS[application.status]}
               </Badge>
+              {application.priority && (
+                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20">
+                  Prioritaire
+                </Badge>
+              )}
             </div>
           </div>
           <Button onClick={() => setFormOpen(true)}>
@@ -224,7 +228,7 @@ export default function ApplicationDetailPage() {
                 <div>
                   <div className="text-sm font-medium text-muted-foreground mb-1">Statut</div>
                   <Badge variant={statusColors[application.status]}>
-                    {statusLabels[application.status]}
+                    {APPLICATION_STATUS_LABELS[application.status]}
                   </Badge>
                 </div>
                 {(application.appliedAt ||
@@ -258,13 +262,13 @@ export default function ApplicationDetailPage() {
                         <div className="text-sm font-medium text-muted-foreground mb-1">
                           Type de contrat
                         </div>
-                        <div className="text-sm">{contractTypeLabels[application.contractType]}</div>
+                        <div className="text-sm">{CONTRACT_TYPE_LABELS[application.contractType]}</div>
                       </div>
                     )}
                     {application.source && (
                       <div>
                         <div className="text-sm font-medium text-muted-foreground mb-1">Source</div>
-                        <div className="text-sm">{sourceLabels[application.source]}</div>
+                        <div className="text-sm">{APPLICATION_SOURCE_LABELS[application.source]}</div>
                       </div>
                     )}
                     {application.location && (
@@ -336,6 +340,65 @@ export default function ApplicationDetailPage() {
 
             {/* Notes Section */}
             <NotesSection applicationId={id} />
+            <InterviewsSection applicationId={id} />
+
+            {/* Last Interaction & Next Action */}
+            {activities.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Suivi</CardTitle>
+                  <CardDescription>
+                    Dernière interaction et prochaine action suggérée
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {(() => {
+                    const lastInteraction = getLastInteraction(activities)
+                    const daysSince = getDaysSinceLastInteraction(activities)
+                    const nextAction = suggestNextAction(application, activities)
+                    
+                    return (
+                      <>
+                        {lastInteraction && (
+                          <div>
+                            <div className="text-sm font-medium text-muted-foreground mb-1">
+                              Dernière interaction
+                            </div>
+                            <div className="text-sm">
+                              {activityTypeLabels[lastInteraction.type] || lastInteraction.type}
+                              {daysSince !== null && (
+                                <span className="text-muted-foreground ml-2">
+                                  ({formatDaysAgo(daysSince)})
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDate(lastInteraction.createdAt)}
+                            </p>
+                          </div>
+                        )}
+                        {nextAction && (
+                          <div className="pt-2 border-t">
+                            <div className="text-sm font-medium text-muted-foreground mb-1">
+                              Prochaine action
+                            </div>
+                            <div className={`text-sm ${
+                              nextAction.urgency === "high" 
+                                ? "text-red-600 dark:text-red-400 font-medium"
+                                : nextAction.urgency === "medium"
+                                ? "text-yellow-600 dark:text-yellow-400"
+                                : "text-muted-foreground"
+                            }`}>
+                              {nextAction.action}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Activities */}
             <Card>
@@ -400,6 +463,39 @@ export default function ApplicationDetailPage() {
                         {application.company.website}
                         <ExternalLink className="h-3 w-3" />
                       </a>
+                    </div>
+                  )}
+                  {application.company.sector && (
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground mb-1">Secteur</div>
+                      <div className="text-sm">{application.company.sector}</div>
+                    </div>
+                  )}
+                  {application.company.size && (
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground mb-1">Taille</div>
+                      <div className="text-sm">{COMPANY_SIZE_LABELS[application.company.size]}</div>
+                    </div>
+                  )}
+                  {application.company.type && (
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground mb-1">Type</div>
+                      <div className="text-sm">{COMPANY_TYPE_LABELS[application.company.type]}</div>
+                    </div>
+                  )}
+                  {application.company.location && (
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Localisation
+                      </div>
+                      <div className="text-sm">{application.company.location}</div>
+                    </div>
+                  )}
+                  {application.company.workMode && (
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground mb-1">Mode de travail</div>
+                      <div className="text-sm">{WORK_MODE_LABELS[application.company.workMode]}</div>
                     </div>
                   )}
                 </CardContent>

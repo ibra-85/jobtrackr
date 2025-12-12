@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
+import { NotFoundError } from "@/lib/api/errors"
 import { applicationsRepository } from "@/db/repositories/applications.repository"
 import { companiesRepository } from "@/db/repositories/companies.repository"
 import { activitiesRepository } from "@/db/repositories/activities.repository"
+import type { ApplicationResponse } from "@/types/api"
 
 /**
  * POST /api/applications/[id]/duplicate
@@ -13,23 +15,13 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { id } = await params
 
     // Récupérer la candidature originale
     const originalApplication = await applicationsRepository.getById(id, session.user.id)
     if (!originalApplication) {
-      return NextResponse.json(
-        { error: "Candidature non trouvée" },
-        { status: 404 },
-      )
+      throw new NotFoundError("Candidature")
     }
 
     // Créer une nouvelle candidature avec les mêmes données (statut remis à "pending")
@@ -55,13 +47,14 @@ export async function POST(
       company = await companiesRepository.getById(duplicatedApplication.companyId)
     }
 
-    return NextResponse.json({ ...duplicatedApplication, company }, { status: 201 })
-  } catch (error) {
-    console.error("Erreur lors de la duplication de la candidature:", error)
     return NextResponse.json(
-      { error: "Erreur serveur lors de la duplication de la candidature" },
-      { status: 500 },
+      {
+        data: { ...duplicatedApplication, company },
+      } as ApplicationResponse,
+      { status: 201 }
     )
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 

@@ -1,45 +1,28 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
 import { applicationsRepository } from "@/db/repositories/applications.repository"
-import { companiesRepository } from "@/db/repositories/companies.repository"
+import type { ApplicationsListResponse } from "@/types/api"
 
 /**
  * GET /api/dashboard/recent
  * Récupère les candidatures récentes pour le dashboard
+ * Optimisé avec JOIN pour éviter N+1 queries
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
+    const session = await requireAuth(request)
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
+    // Utiliser la méthode optimisée avec JOIN
+    const allApplications = await applicationsRepository.getAllWithCompaniesByUserId(session.user.id)
 
-    const applications = await applicationsRepository.getAllByUserId(session.user.id)
+    // Prendre les 5 plus récentes (déjà triées par createdAt DESC)
+    const recentApplications = allApplications.slice(0, 5)
 
-    // Prendre les 5 plus récentes
-    const recentApplications = applications.slice(0, 5)
-
-    // Enrichir avec les informations des entreprises
-    const applicationsWithCompanies = await Promise.all(
-      recentApplications.map(async (app) => {
-        if (app.companyId) {
-          const company = await companiesRepository.getById(app.companyId)
-          return { ...app, company: company || undefined }
-        }
-        return { ...app, company: undefined }
-      }),
-    )
-
-    return NextResponse.json(applicationsWithCompanies)
+    return NextResponse.json({
+      data: recentApplications,
+    } as ApplicationsListResponse)
   } catch (error) {
-    console.error("Erreur lors de la récupération des candidatures récentes:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la récupération des candidatures récentes" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 

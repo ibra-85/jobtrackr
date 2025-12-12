@@ -25,6 +25,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
+import {
+  APPLICATION_STATUS_LABELS,
+  APPLICATION_SOURCE_LABELS,
+  CONTRACT_TYPE_LABELS,
+} from "@/lib/constants/labels"
 import { DataTablePagination } from "./data-table-pagination"
 import { DataTableToolbar } from "./data-table-toolbar"
 import type { ApplicationWithCompany } from "./columns"
@@ -69,36 +74,22 @@ export function DataTable({ columns, data, onCreateClick }: DataTableProps) {
       if (application.location?.toLowerCase().includes(search)) return true
       
       // Recherche dans le statut (label)
-      const statusLabels: Record<string, string> = {
-        pending: "en attente",
-        in_progress: "en cours",
-        accepted: "acceptée",
-        rejected: "refusée",
+      if (application.status) {
+        const statusLabel = APPLICATION_STATUS_LABELS[application.status]?.toLowerCase()
+        if (statusLabel?.includes(search)) return true
       }
-      if (application.status && statusLabels[application.status]?.includes(search)) return true
       
       // Recherche dans la source (label)
-      const sourceLabels: Record<string, string> = {
-        linkedin: "linkedin",
-        indeed: "indeed",
-        welcome_to_the_jungle: "welcome to the jungle",
-        site_carriere: "site carrière",
-        cooptation: "cooptation",
-        email: "email",
-        autre: "autre",
+      if (application.source) {
+        const sourceLabel = APPLICATION_SOURCE_LABELS[application.source]?.toLowerCase()
+        if (sourceLabel?.includes(search)) return true
       }
-      if (application.source && sourceLabels[application.source]?.includes(search)) return true
       
       // Recherche dans le type de contrat (label)
-      const contractLabels: Record<string, string> = {
-        cdi: "cdi",
-        cdd: "cdd",
-        stage: "stage",
-        alternance: "alternance",
-        freelance: "freelance",
-        autre: "autre",
+      if (application.contractType) {
+        const contractLabel = CONTRACT_TYPE_LABELS[application.contractType]?.toLowerCase()
+        if (contractLabel?.includes(search)) return true
       }
-      if (application.contractType && contractLabels[application.contractType]?.includes(search)) return true
       
       return false
     },

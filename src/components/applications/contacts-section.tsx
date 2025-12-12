@@ -23,6 +23,7 @@ import {
 import { Users, Plus, MoreVertical, Edit, Trash2, Mail, Linkedin, Phone } from "lucide-react"
 import { toast } from "sonner"
 import type { ApplicationContact } from "@/db/schema"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 interface ContactsSectionProps {
   applicationId: string
@@ -42,6 +43,8 @@ export function ContactsSection({ applicationId }: ContactsSectionProps) {
     notes: "",
   })
   const [saving, setSaving] = useState(false)
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [contactToDelete, setContactToDelete] = useState<string | null>(null)
 
   useEffect(() => {
     fetchContacts()
@@ -52,11 +55,15 @@ export function ContactsSection({ applicationId }: ContactsSectionProps) {
       setLoading(true)
       const response = await fetch(`/api/applications/${applicationId}/contacts`)
       if (response.ok) {
-        const data = await response.json()
-        setContacts(data)
+        const result = await response.json()
+        setContacts(result.data || [])
+      } else {
+        const error = await response.json()
+        toast.error(error.error || "Erreur lors du chargement des contacts")
       }
     } catch (error) {
       console.error("Erreur lors du chargement des contacts:", error)
+      toast.error("Erreur lors du chargement des contacts")
     } finally {
       setLoading(false)
     }
@@ -107,10 +114,15 @@ export function ContactsSection({ applicationId }: ContactsSectionProps) {
         )
 
         if (!response.ok) {
-          throw new Error("Erreur lors de la mise à jour")
+          const error = await response.json()
+          throw new Error(error.error || "Erreur lors de la mise à jour")
         }
 
+        const updateResult = await response.json()
         toast.success("Contact modifié avec succès")
+        setContacts((prev) =>
+          prev.map((contact) => (contact.id === editingContact.id ? updateResult.data : contact))
+        )
       } else {
         // Créer
         const response = await fetch(`/api/applications/${applicationId}/contacts`, {
@@ -120,45 +132,62 @@ export function ContactsSection({ applicationId }: ContactsSectionProps) {
         })
 
         if (!response.ok) {
-          throw new Error("Erreur lors de la création")
+          const error = await response.json()
+          throw new Error(error.error || "Erreur lors de la création")
         }
 
+        const createResult = await response.json()
         toast.success("Contact ajouté avec succès")
+        setContacts((prev) => [createResult.data, ...prev])
       }
 
       setDialogOpen(false)
       setEditingContact(null)
-      fetchContacts()
     } catch (error) {
       console.error("Erreur:", error)
-      toast.error("Une erreur est survenue")
+      if (error instanceof Error) {
+        toast.error(error.message)
+      } else {
+        toast.error("Une erreur est survenue")
+      }
     } finally {
       setSaving(false)
     }
   }
 
-  const handleDelete = async (contactId: string) => {
-    if (!confirm("Es-tu sûr de vouloir supprimer ce contact ?")) {
-      return
-    }
+  const handleDelete = (contactId: string) => {
+    setContactToDelete(contactId)
+    setConfirmDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!contactToDelete) return
 
     try {
       const response = await fetch(
-        `/api/applications/${applicationId}/contacts/${contactId}`,
+        `/api/applications/${applicationId}/contacts/${contactToDelete}`,
         {
           method: "DELETE",
         },
       )
 
       if (!response.ok) {
-        throw new Error("Erreur lors de la suppression")
+        const error = await response.json()
+        throw new Error(error.error || "Erreur lors de la suppression")
       }
 
       toast.success("Contact supprimé avec succès")
+      setContacts((prev) => prev.filter((contact) => contact.id !== contactToDelete))
       fetchContacts()
     } catch (error) {
       console.error("Erreur:", error)
-      toast.error("Une erreur est survenue")
+      if (error instanceof Error) {
+        toast.error(error.message)
+      } else {
+        toast.error("Une erreur est survenue")
+      }
+    } finally {
+      setContactToDelete(null)
     }
   }
 
@@ -376,6 +405,17 @@ export function ContactsSection({ applicationId }: ContactsSectionProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmDialogOpen}
+        onOpenChange={setConfirmDialogOpen}
+        title="Supprimer le contact"
+        description="Es-tu sûr de vouloir supprimer ce contact ? Cette action est irréversible."
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        variant="destructive"
+        onConfirm={confirmDelete}
+      />
     </>
   )
 }

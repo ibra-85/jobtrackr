@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
 import { companiesRepository } from "@/db/repositories/companies.repository"
+import { CreateCompanySchema } from "@/lib/validation/schemas"
+import { validateRequest } from "@/lib/validation/helpers"
+import type { CompaniesListResponse, CompanyResponse } from "@/types/api"
 
 /**
  * GET /api/companies
- * Récupère toutes les entreprises
+ * Récupère toutes les entreprises de l'utilisateur connecté
  */
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth(request) // Protéger la route
     const companies = await companiesRepository.getAll()
-    return NextResponse.json(companies)
+    return NextResponse.json({
+      data: companies,
+    } as CompaniesListResponse)
   } catch (error) {
-    console.error("Erreur lors de la récupération des entreprises:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la récupération des entreprises" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 
@@ -24,28 +27,35 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    await requireAuth(request) // Protéger la route
     const body = await request.json()
-    const { name, website } = body
 
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Le nom de l'entreprise est requis" },
-        { status: 400 },
-      )
+    // Valider les données avec Zod
+    const validation = validateRequest(CreateCompanySchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
+    const { name, website, sector, size, type, location, workMode } = validation.data
+
     const company = await companiesRepository.create({
-      name: name.trim(),
-      website: website?.trim() || undefined,
+      name,
+      website: website && website !== "" ? website : undefined,
+      sector: sector && sector !== "" ? sector : undefined,
+      size: size || undefined,
+      type: type || undefined,
+      location: location && location !== "" ? location : undefined,
+      workMode: workMode || undefined,
     })
 
-    return NextResponse.json(company, { status: 201 })
-  } catch (error) {
-    console.error("Erreur lors de la création de l'entreprise:", error)
     return NextResponse.json(
-      { error: "Erreur serveur lors de la création de l'entreprise" },
-      { status: 500 },
+      {
+        data: company,
+      } as CompanyResponse,
+      { status: 201 }
     )
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 

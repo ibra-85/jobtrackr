@@ -1,48 +1,30 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
 import { applicationsRepository } from "@/db/repositories/applications.repository"
 import { companiesRepository } from "@/db/repositories/companies.repository"
 import { activitiesRepository } from "@/db/repositories/activities.repository"
-import type {
-  ApplicationStatus,
-  ContractType,
-  ApplicationSource,
-} from "@/db/schema"
+import { CreateApplicationSchema } from "@/lib/validation/schemas"
+import { validateRequest } from "@/lib/validation/helpers"
+import type { ApplicationsListResponse, ApplicationResponse } from "@/types/api"
+import { NotFoundError } from "@/lib/api/errors"
 
 /**
  * GET /api/applications
  * Récupère toutes les candidatures de l'utilisateur connecté
+ * Optimisé avec JOIN pour éviter N+1 queries
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
+    const session = await requireAuth(request)
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
+    // Utiliser la méthode optimisée avec JOIN
+    const applications = await applicationsRepository.getAllWithCompaniesByUserId(session.user.id)
 
-    const applications = await applicationsRepository.getAllByUserId(session.user.id)
-
-    // Enrichir avec les informations des entreprises
-    const applicationsWithCompanies = await Promise.all(
-      applications.map(async (app) => {
-        if (app.companyId) {
-          const company = await companiesRepository.getById(app.companyId)
-          return { ...app, company: company || undefined }
-        }
-        return { ...app, company: undefined }
-      }),
-    )
-
-    return NextResponse.json(applicationsWithCompanies)
+    return NextResponse.json({
+      data: applications,
+    } as ApplicationsListResponse)
   } catch (error) {
-    console.error("Erreur lors de la récupération des candidatures:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la récupération des candidatures" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 
@@ -52,90 +34,76 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
+    const session = await requireAuth(request)
+    const body = await request.json()
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
+    // Valider les données avec Zod
+    const validation = validateRequest(CreateApplicationSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
-    const body = await request.json()
     const {
       title,
       companyId,
       status,
+      priority,
       notes,
       appliedAt,
       deadline,
       contractType,
+      contractTypes,
       location,
       salaryRange,
       source,
       jobUrl,
-    } = body
-
-    if (!title || typeof title !== "string" || title.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Le titre est requis" },
-        { status: 400 },
-      )
-    }
-
-    // Vérifier que le statut est valide si fourni
-    const validStatuses: ApplicationStatus[] = ["pending", "in_progress", "accepted", "rejected"]
-    if (status && !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: "Statut invalide" },
-        { status: 400 },
-      )
-    }
+    } = validation.data
 
     // Vérifier que l'entreprise existe si companyId est fourni
-    if (companyId) {
+    if (companyId && companyId !== "") {
       const company = await companiesRepository.getById(companyId)
       if (!company) {
-        return NextResponse.json(
-          { error: "Entreprise non trouvée" },
-          { status: 404 },
-        )
+        throw new NotFoundError("Entreprise")
       }
     }
 
     const application = await applicationsRepository.create(session.user.id, {
-      title: title.trim(),
-      companyId,
+      title,
+      companyId: companyId && companyId !== "" ? companyId : undefined,
       status: status || "pending",
-      notes: notes || undefined,
-      appliedAt: appliedAt ? new Date(appliedAt) : undefined,
-      deadline: deadline ? new Date(deadline) : undefined,
-      contractType: contractType as ContractType | undefined,
-      location: location || undefined,
-      salaryRange: salaryRange || undefined,
-      source: source as ApplicationSource | undefined,
-      jobUrl: jobUrl || undefined,
+      priority: priority ?? false,
+      notes: notes && notes !== "" ? notes : undefined,
+      appliedAt: appliedAt && appliedAt !== "" ? new Date(appliedAt) : undefined,
+      deadline: deadline && deadline !== "" ? new Date(deadline) : undefined,
+      contractType: contractType || undefined, // Ancien champ pour compatibilité
+      contractTypes: contractTypes && contractTypes.length > 0 ? contractTypes : undefined, // Nouveau champ
+      location: location && location !== "" ? location : undefined,
+      salaryRange: salaryRange && salaryRange !== "" ? salaryRange : undefined,
+      source: source || undefined,
+      jobUrl: jobUrl && jobUrl !== "" ? jobUrl : undefined,
     })
 
     // Créer une activité pour la création
     await activitiesRepository.create(session.user.id, {
       applicationId: application.id,
       type: "application_created",
-      description: `Candidature créée : "${title.trim()}"`,
+      description: `Candidature créée : "${title}"`,
     })
 
-    // Enrichir avec les informations de l'entreprise
-    let company = undefined
-    if (application.companyId) {
-      company = await companiesRepository.getById(application.companyId)
-    }
-
-    return NextResponse.json({ ...application, company }, { status: 201 })
-  } catch (error) {
-    console.error("Erreur lors de la création de la candidature:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la création de la candidature" },
-      { status: 500 },
+    // Récupérer la candidature créée avec l'entreprise (JOIN optimisé)
+    const applicationWithCompany = await applicationsRepository.getByIdWithCompany(
+      application.id,
+      session.user.id
     )
+
+    return NextResponse.json(
+      {
+        data: applicationWithCompany!,
+      } as ApplicationResponse,
+      { status: 201 }
+    )
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 

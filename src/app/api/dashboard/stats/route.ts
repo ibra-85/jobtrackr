@@ -1,44 +1,25 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
 import { applicationsRepository } from "@/db/repositories/applications.repository"
-import type { ApplicationStatus } from "@/db/schema"
+import type { StatsResponse } from "@/types/api"
 
 /**
  * GET /api/dashboard/stats
  * Récupère les statistiques du dashboard pour l'utilisateur connecté
+ * Optimisé avec COUNT SQL au lieu de charger toutes les données
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
+    const session = await requireAuth(request)
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
-    const applications = await applicationsRepository.getAllByUserId(session.user.id)
-
-    // Calculer les statistiques
-    const total = applications.length
-    const pending = applications.filter((a) => a.status === "pending").length
-    const inProgress = applications.filter((a) => a.status === "in_progress").length
-    const accepted = applications.filter((a) => a.status === "accepted").length
-    const rejected = applications.filter((a) => a.status === "rejected").length
+    // Utiliser la méthode optimisée avec COUNT SQL
+    const stats = await applicationsRepository.getStatsByUserId(session.user.id)
 
     return NextResponse.json({
-      total,
-      pending,
-      inProgress,
-      accepted,
-      rejected,
-    })
+      data: stats,
+    } as StatsResponse)
   } catch (error) {
-    console.error("Erreur lors de la récupération des statistiques:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la récupération des statistiques" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 

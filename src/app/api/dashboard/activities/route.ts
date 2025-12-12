@@ -1,27 +1,24 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
 import { activitiesRepository } from "@/db/repositories/activities.repository"
 import { applicationsRepository } from "@/db/repositories/applications.repository"
 import { companiesRepository } from "@/db/repositories/companies.repository"
+import type { ActivitiesListResponse } from "@/types/api"
 
 /**
  * GET /api/dashboard/activities
  * Récupère les activités récentes pour le dashboard avec les informations des candidatures
+ * TODO: Optimiser avec JOIN pour éviter N+1 queries
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
+    const session = await requireAuth(request)
 
     // Récupérer les 10 activités les plus récentes
     const activities = await activitiesRepository.getAllByUserId(session.user.id, 10)
 
     // Enrichir avec les informations des candidatures
+    // NOTE: N+1 queries - à optimiser avec JOIN dans le repository
     const activitiesWithApplications = await Promise.all(
       activities.map(async (activity) => {
         let application = null
@@ -64,13 +61,11 @@ export async function GET(request: NextRequest) {
       }),
     )
 
-    return NextResponse.json(activitiesWithApplications)
+    return NextResponse.json({
+      data: activitiesWithApplications,
+    } as ActivitiesListResponse)
   } catch (error) {
-    console.error("Erreur lors de la récupération des activités:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la récupération des activités" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 

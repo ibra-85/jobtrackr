@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/better-auth"
+import { requireAuth, handleApiError } from "@/lib/api/helpers"
+import { NotFoundError } from "@/lib/api/errors"
 import { notesRepository } from "@/db/repositories/notes.repository"
 import { activitiesRepository } from "@/db/repositories/activities.repository"
+import { UpdateApplicationNoteSchema } from "@/lib/validation/schemas"
+import { validateRequest } from "@/lib/validation/helpers"
+import type { ApiResponse } from "@/types/api"
+import type { ApplicationNote } from "@/db/schema"
 
 /**
  * PUT /api/applications/[id]/notes/[noteId]
@@ -12,47 +17,35 @@ export async function PUT(
   { params }: { params: Promise<{ id: string; noteId: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { noteId } = await params
 
     const body = await request.json()
-    const { content } = body
 
-    if (!content || typeof content !== "string" || content.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Le contenu de la note est requis" },
-        { status: 400 },
-      )
+    // Valider les données avec Zod
+    const validation = validateRequest(UpdateApplicationNoteSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
+    const { content } = validation.data
+
     const note = await notesRepository.update(noteId, session.user.id, {
-      content: content.trim(),
+      content,
     })
 
     // Créer une activité pour la modification de note
     await activitiesRepository.create(session.user.id, {
       applicationId: note.applicationId,
       type: "note_added",
-      description: `Note modifiée : "${content.trim().substring(0, 50)}${content.trim().length > 50 ? "..." : ""}"`,
+      description: `Note modifiée : "${content.substring(0, 50)}${content.length > 50 ? "..." : ""}"`,
     })
 
-    return NextResponse.json(note)
+    return NextResponse.json({
+      data: note,
+    } as ApiResponse<ApplicationNote>)
   } catch (error) {
-    console.error("Erreur lors de la mise à jour de la note:", error)
-    if (error instanceof Error && error.message.includes("non trouvée")) {
-      return NextResponse.json({ error: error.message }, { status: 404 })
-    }
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la mise à jour de la note" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 
@@ -65,20 +58,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; noteId: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    })
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
+    const session = await requireAuth(request)
     const { noteId } = await params
 
     // Récupérer la note avant suppression pour avoir l'applicationId
     const note = await notesRepository.getById(noteId, session.user.id)
     if (!note) {
-      return NextResponse.json({ error: "Note non trouvée" }, { status: 404 })
+      throw new NotFoundError("Note")
     }
 
     await notesRepository.delete(noteId, session.user.id)
@@ -90,13 +76,11 @@ export async function DELETE(
       description: "Note supprimée",
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      data: { success: true },
+    })
   } catch (error) {
-    console.error("Erreur lors de la suppression de la note:", error)
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la suppression de la note" },
-      { status: 500 },
-    )
+    return handleApiError(error)
   }
 }
 

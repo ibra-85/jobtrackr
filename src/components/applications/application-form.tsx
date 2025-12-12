@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -39,9 +40,12 @@ import type {
   ContractType,
   ApplicationSource,
 } from "@/db/schema"
-import { Search, Check, ChevronsUpDown, Building2, Plus } from "lucide-react"
+import { Search, Check, ChevronsUpDown, Building2, Plus, Star } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { APPLICATION_STATUS_OPTIONS, CONTRACT_TYPE_OPTIONS } from "@/lib/constants/labels"
+import { DatePicker } from "@/components/ui/date-picker"
+import MultipleSelector, { Option } from "@/components/ui/multiselect"
 
 interface ApplicationFormProps {
   open: boolean
@@ -49,13 +53,6 @@ interface ApplicationFormProps {
   application?: Application & { company?: Company }
   onSuccess: () => void
 }
-
-const statusOptions: { value: ApplicationStatus; label: string }[] = [
-  { value: "pending", label: "En attente" },
-  { value: "in_progress", label: "En cours" },
-  { value: "accepted", label: "Acceptée" },
-  { value: "rejected", label: "Refusée" },
-]
 
 // Suggestions de postes communs pour l'autocomplete
 // Liste exhaustive basée sur des postes réels du marché français
@@ -209,6 +206,7 @@ export function ApplicationForm({
 }: ApplicationFormProps) {
   const [title, setTitle] = useState("")
   const [status, setStatus] = useState<ApplicationStatus>("pending")
+  const [priority, setPriority] = useState(false)
   const [companyId, setCompanyId] = useState<string>("none")
   const [companySearch, setCompanySearch] = useState("")
   const [companies, setCompanies] = useState<Company[]>([])
@@ -222,9 +220,10 @@ export function ApplicationForm({
   const [loadingJobTitles, setLoadingJobTitles] = useState(false)
   // Nouveaux champs
   const [notes, setNotes] = useState("")
-  const [appliedAt, setAppliedAt] = useState<string>("")
-  const [deadline, setDeadline] = useState<string>("")
-  const [contractType, setContractType] = useState<ContractType | "">("")
+  const [appliedAt, setAppliedAt] = useState<Date | undefined>(undefined)
+  const [deadline, setDeadline] = useState<Date | undefined>(undefined)
+  const [contractType, setContractType] = useState<ContractType | "">("") // Ancien champ pour compatibilité
+  const [contractTypes, setContractTypes] = useState<ContractType[]>([]) // Nouveau champ multi-select
   const [location, setLocation] = useState("")
   const [salaryRange, setSalaryRange] = useState("")
   const [source, setSource] = useState<ApplicationSource | "">("")
@@ -286,6 +285,7 @@ export function ApplicationForm({
     if (application) {
       setTitle(application.title)
       setStatus(application.status)
+      setPriority(application.priority || false)
       setCompanyId(application.companyId || "none")
       if (application.company) {
         setCompanySearch(application.company.name)
@@ -293,13 +293,10 @@ export function ApplicationForm({
         setCompanySearch("")
       }
       setNotes(application.notes || "")
-      setAppliedAt(
-        application.appliedAt ? new Date(application.appliedAt).toISOString().split("T")[0] : "",
-      )
-      setDeadline(
-        application.deadline ? new Date(application.deadline).toISOString().split("T")[0] : "",
-      )
-      setContractType(application.contractType || "")
+      setAppliedAt(application.appliedAt ? new Date(application.appliedAt) : undefined)
+      setDeadline(application.deadline ? new Date(application.deadline) : undefined)
+      setContractType(application.contractType || "") // Ancien champ
+      setContractTypes(application.contractTypes || []) // Nouveau champ
       setLocation(application.location || "")
       setSalaryRange(application.salaryRange || "")
       setSource(application.source || "")
@@ -307,12 +304,14 @@ export function ApplicationForm({
     } else {
       setTitle("")
       setStatus("pending")
+      setPriority(false)
       setCompanyId("none")
       setCompanySearch("")
       setNotes("")
       setAppliedAt("")
       setDeadline("")
-      setContractType("")
+      setContractType("") // Ancien champ
+      setContractTypes([]) // Nouveau champ
       setLocation("")
       setSalaryRange("")
       setSource("")
@@ -365,8 +364,8 @@ export function ApplicationForm({
     try {
       const response = await fetch("/api/companies")
       if (response.ok) {
-        const data = await response.json()
-        setCompanies(data)
+        const result = await response.json()
+        setCompanies(result.data || [])
       }
     } catch (error) {
       console.error("Erreur lors du chargement des entreprises:", error)
@@ -383,8 +382,8 @@ export function ApplicationForm({
     try {
       const response = await fetch(`/api/companies/search?q=${encodeURIComponent(query)}`)
       if (response.ok) {
-        const data = await response.json()
-        setCompanies(data)
+        const result = await response.json()
+        setCompanies(result.data || [])
       }
     } catch (error) {
       console.error("Erreur lors de la recherche d'entreprises:", error)
@@ -444,7 +443,8 @@ export function ApplicationForm({
         throw new Error(error.error || "Erreur lors de la création")
       }
 
-      const newCompany = await response.json()
+      const result = await response.json()
+      const newCompany = result.data
       setCompanies((prev) => {
         const updated = [...prev, newCompany].sort((a, b) => a.name.localeCompare(b.name))
         return updated
@@ -489,11 +489,13 @@ export function ApplicationForm({
         body: JSON.stringify({
           title: title.trim(),
           status,
+          priority,
           companyId: companyId && companyId !== "none" ? companyId : undefined,
           notes: notes.trim() || undefined,
-          appliedAt: appliedAt ? new Date(appliedAt).toISOString() : undefined,
-          deadline: deadline ? new Date(deadline).toISOString() : undefined,
-          contractType: contractType || undefined,
+          appliedAt: appliedAt ? appliedAt.toISOString() : undefined,
+          deadline: deadline ? deadline.toISOString() : undefined,
+          contractType: contractType || undefined, // Ancien champ pour compatibilité
+          contractTypes: contractTypes.length > 0 ? contractTypes : undefined, // Nouveau champ
           location: location.trim() || undefined,
           salaryRange: salaryRange.trim() || undefined,
           source: source || undefined,
@@ -521,7 +523,7 @@ export function ApplicationForm({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-2xl">
             {isEditing ? "Modifier la candidature" : "Nouvelle candidature"}
           </DialogTitle>
@@ -532,7 +534,7 @@ export function ApplicationForm({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <div className="space-y-5 py-4 overflow-y-auto flex-1 pr-2 scrollbar-thin">
+          <div className="space-y-5 py-4 px-2 overflow-y-auto flex-1 pr-2 scrollbar-thin">
             <div className="space-y-2 relative">
               <Label htmlFor="title" className="text-sm font-semibold">
                 Titre du poste *
@@ -720,76 +722,87 @@ export function ApplicationForm({
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="status" className="text-sm font-semibold">
-                Statut
-              </Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as ApplicationStatus)} disabled={loading}>
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="status" className="text-sm font-semibold">
+                  Statut
+                </Label>
+                <Select value={status} onValueChange={(v) => setStatus(v as ApplicationStatus)} disabled={loading}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {APPLICATION_STATUS_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="priority" className="text-sm font-semibold">
+                  Priorité
+                </Label>
+                <div className="flex items-center space-x-2 h-9">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <Checkbox
+                      checked={priority}
+                      onCheckedChange={(checked) => setPriority(checked === true)}
+                      disabled={loading}
+                      id="priority"
+                    />
+                    <span className="text-sm flex items-center gap-1.5">
+                      <Star className={`h-4 w-4 ${priority ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"}`} />
+                      Prioritaire
+                    </span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             {/* Nouveaux champs supplémentaires */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="appliedAt" className="text-sm font-semibold">
+                <Label className="text-sm font-semibold">
                   Date de candidature
                 </Label>
-                <Input
-                  id="appliedAt"
-                  type="date"
+                <DatePicker
                   value={appliedAt}
-                  onChange={(e) => setAppliedAt(e.target.value)}
+                  onChange={setAppliedAt}
+                  placeholder="Sélectionner une date"
                   disabled={loading}
-                  className="h-9"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="deadline" className="text-sm font-semibold">
+                <Label className="text-sm font-semibold">
                   Date limite
                 </Label>
-                <Input
-                  id="deadline"
-                  type="date"
+                <DatePicker
                   value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
+                  onChange={setDeadline}
+                  placeholder="Sélectionner une date"
                   disabled={loading}
-                  className="h-9"
+                  min={appliedAt}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="contractType" className="text-sm font-semibold">
-                  Type de contrat
+                <Label htmlFor="contractTypes" className="text-sm font-semibold">
+                  Types de contrat
                 </Label>
-                <Select
-                  value={contractType}
-                  onValueChange={(v) => setContractType(v as ContractType)}
+                <MultipleSelector
+                  options={CONTRACT_TYPE_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+                  value={contractTypes.map(ct => ({ value: ct, label: CONTRACT_TYPE_OPTIONS.find(o => o.value === ct)?.label || ct }))}
+                  onChange={(options) => setContractTypes(options.map(o => o.value as ContractType))}
+                  placeholder="Sélectionner un ou plusieurs types..."
                   disabled={loading}
-                >
-                  <SelectTrigger className="h-9 w-full">
-                    <SelectValue placeholder="Sélectionner..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cdi">CDI</SelectItem>
-                    <SelectItem value="cdd">CDD</SelectItem>
-                    <SelectItem value="stage">Stage</SelectItem>
-                    <SelectItem value="alternance">Alternance</SelectItem>
-                    <SelectItem value="freelance">Freelance</SelectItem>
-                    <SelectItem value="autre">Autre</SelectItem>
-                  </SelectContent>
-                </Select>
+                  maxDisplayed={3}
+                  hideClearAllButton
+                  hidePlaceholderWhenSelected
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="source" className="text-sm font-semibold">
