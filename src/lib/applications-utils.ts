@@ -119,3 +119,84 @@ export function formatDaysAgo(days: number): string {
   return `Il y a ${years} an${years > 1 ? "s" : ""}`
 }
 
+/**
+ * Détermine si une candidature nécessite une action (version simplifiée sans activités)
+ * Utilise uniquement les dates de la candidature pour déterminer l'urgence
+ */
+export function needsAction(application: Application): {
+  needsAction: boolean
+  urgency: "low" | "medium" | "high" | null
+  reason: string | null
+} {
+  const now = new Date()
+  
+  // Si candidature créée mais jamais envoyée (pas de date de candidature)
+  if (!application.appliedAt && application.status === "pending") {
+    return {
+      needsAction: true,
+      urgency: "high",
+      reason: "Candidature non envoyée",
+    }
+  }
+  
+  // Si deadline approche ou dépassée
+  if (application.deadline) {
+    const deadlineDate = new Date(application.deadline)
+    const daysUntilDeadline = Math.floor(
+      (deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    )
+    
+    if (daysUntilDeadline < 0) {
+      return {
+        needsAction: true,
+        urgency: "high",
+        reason: "Deadline dépassée",
+      }
+    }
+    
+    if (daysUntilDeadline <= 3 && daysUntilDeadline >= 0) {
+      return {
+        needsAction: true,
+        urgency: "high",
+        reason: `Deadline dans ${daysUntilDeadline} jour${daysUntilDeadline > 1 ? "s" : ""}`,
+      }
+    }
+  }
+  
+  // Si candidature en attente et pas de nouvelle depuis plus de 7 jours (basé sur updatedAt)
+  if (application.status === "pending" && application.updatedAt) {
+    const daysSinceUpdate = Math.floor(
+      (now.getTime() - new Date(application.updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+    )
+    
+    if (daysSinceUpdate >= 7) {
+      return {
+        needsAction: true,
+        urgency: "medium",
+        reason: `Pas de nouvelle depuis ${daysSinceUpdate} jour${daysSinceUpdate > 1 ? "s" : ""}`,
+      }
+    }
+  }
+  
+  // Si candidature en cours et pas de nouvelle depuis plus de 5 jours
+  if (application.status === "in_progress" && application.updatedAt) {
+    const daysSinceUpdate = Math.floor(
+      (now.getTime() - new Date(application.updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+    )
+    
+    if (daysSinceUpdate >= 5) {
+      return {
+        needsAction: true,
+        urgency: "medium",
+        reason: `Suivi nécessaire (${daysSinceUpdate} jour${daysSinceUpdate > 1 ? "s" : ""})`,
+      }
+    }
+  }
+  
+  return {
+    needsAction: false,
+    urgency: null,
+    reason: null,
+  }
+}
+

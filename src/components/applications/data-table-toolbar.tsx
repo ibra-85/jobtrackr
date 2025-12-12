@@ -1,12 +1,13 @@
 "use client"
 
 import { Table } from "@tanstack/react-table"
-import { X, Search, CirclePlus } from "lucide-react"
+import { X, Search, CirclePlus, AlertTriangle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTableCombinedFilters } from "./data-table-combined-filters"
 import type { ApplicationWithCompany } from "./columns"
+import { needsAction } from "@/lib/applications-utils"
 import { cn } from "@/lib/utils"
 
 interface DataTableToolbarProps {
@@ -16,10 +17,38 @@ interface DataTableToolbarProps {
 
 export function DataTableToolbar({ table, onCreateClick }: DataTableToolbarProps) {
   const isFiltered = table.getState().columnFilters.length > 0 || table.getState().globalFilter
+  const actionRequiredFilter = table.getColumn("actionRequired")?.getFilterValue() as boolean | undefined
+  // Compter les candidatures nécessitant une action dans toutes les données (pas seulement filtrées)
+  const allApplications = table.getCoreRowModel().rows.map(row => row.original)
+  const needsActionCount = allApplications.filter(app => needsAction(app).needsAction).length
 
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div className="flex flex-1 flex-wrap items-center gap-2">
+        <Button
+          variant={actionRequiredFilter ? "default" : "outline"}
+          size="sm"
+          onClick={() => {
+            const column = table.getColumn("actionRequired")
+            if (actionRequiredFilter) {
+              column?.setFilterValue(undefined)
+            } else {
+              column?.setFilterValue(true)
+            }
+          }}
+          className={cn(
+            "h-9 gap-2",
+            actionRequiredFilter && "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20 hover:bg-orange-500/20"
+          )}
+        >
+          <AlertTriangle className="h-4 w-4" />
+          <span>Actions requises</span>
+          {needsActionCount > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 text-xs font-semibold rounded-full bg-orange-500/20">
+              {needsActionCount}
+            </span>
+          )}
+        </Button>
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
           <Input

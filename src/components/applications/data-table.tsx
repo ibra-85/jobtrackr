@@ -32,15 +32,17 @@ import {
 } from "@/lib/constants/labels"
 import { DataTablePagination } from "./data-table-pagination"
 import { DataTableToolbar } from "./data-table-toolbar"
+import { DataTableBulkActions } from "./data-table-bulk-actions"
 import type { ApplicationWithCompany } from "./columns"
 
 interface DataTableProps {
   columns: ColumnDef<ApplicationWithCompany>[]
   data: ApplicationWithCompany[]
   onCreateClick?: () => void
+  onRefresh?: () => void
 }
 
-export function DataTable({ columns, data, onCreateClick }: DataTableProps) {
+export function DataTable({ columns, data, onCreateClick, onRefresh }: DataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
@@ -106,6 +108,7 @@ export function DataTable({ columns, data, onCreateClick }: DataTableProps) {
   return (
     <div className="space-y-4">
       {onCreateClick && <DataTableToolbar table={table} onCreateClick={onCreateClick} />}
+      {onRefresh && <DataTableBulkActions table={table} onUpdateComplete={onRefresh} />}
       <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <Table>

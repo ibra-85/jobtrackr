@@ -37,6 +37,7 @@ import { ApplicationForm } from "@/components/applications/application-form"
 import { NotesSection } from "@/components/applications/notes-section"
 import { ContactsSection } from "@/components/applications/contacts-section"
 import { InterviewsSection } from "@/components/applications/interviews-section"
+import { CompanyEditDialog } from "@/components/applications/company-edit-dialog"
 import { toast } from "sonner"
 import {
   getLastInteraction,
@@ -79,6 +80,7 @@ export default function ApplicationDetailPage() {
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
+  const [companyEditDialogOpen, setCompanyEditDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchApplication()
@@ -441,10 +443,20 @@ export default function ApplicationDetailPage() {
             {application.company ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5" />
-                    Entreprise
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5" />
+                      Entreprise
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCompanyEditDialogOpen(true)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Modifier
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
@@ -537,6 +549,18 @@ export default function ApplicationDetailPage() {
             toast.success("Candidature modifiée avec succès")
           }}
         />
+
+        {application?.company && (
+          <CompanyEditDialog
+            open={companyEditDialogOpen}
+            onOpenChange={setCompanyEditDialogOpen}
+            company={application.company}
+            onSuccess={() => {
+              fetchApplication()
+              toast.success("Entreprise modifiée avec succès")
+            }}
+          />
+        )}
       </div>
     </AppShell>
   )

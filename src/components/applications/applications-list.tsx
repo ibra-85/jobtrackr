@@ -234,7 +234,12 @@ export function ApplicationsList({ applications, onRefresh }: ApplicationsListPr
 
   return (
     <div className="space-y-4">
-      <DataTable columns={columnsWithActions} data={applications} onCreateClick={handleCreate} />
+      <DataTable 
+        columns={columnsWithActions} 
+        data={applications} 
+        onCreateClick={handleCreate}
+        onRefresh={onRefresh}
+      />
       <ApplicationForm
         open={formOpen}
         onOpenChange={(open) => {

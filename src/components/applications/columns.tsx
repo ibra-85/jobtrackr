@@ -4,13 +4,20 @@ import { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Star } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Star, AlertCircle, Clock } from "lucide-react"
+import { cn } from "@/lib/utils"
 import type { Application, ApplicationStatus, Company, ContractType, ApplicationSource } from "@/db/schema"
 import {
   APPLICATION_STATUS_LABELS,
   CONTRACT_TYPE_LABELS,
   APPLICATION_SOURCE_LABELS,
 } from "@/lib/constants/labels"
+import { needsAction } from "@/lib/applications-utils"
 import { DataTableColumnHeader } from "./data-table-column-header"
 import { DataTableRowActions } from "./data-table-row-actions"
 
@@ -45,16 +52,47 @@ export const columns: ColumnDef<ApplicationWithCompany>[] = [
     header: ({ column }) => <DataTableColumnHeader column={column} title="Titre" />,
     cell: ({ row }) => {
       const application = row.original
+      const actionInfo = needsAction(application)
+      
+      const urgencyIcons = {
+        high: AlertCircle,
+        medium: Clock,
+        low: Clock,
+      }
+      
+      const urgencyColors = {
+        high: "text-red-600 dark:text-red-400",
+        medium: "text-orange-600 dark:text-orange-400",
+        low: "text-yellow-600 dark:text-yellow-400",
+      }
+      
+      const ActionIcon = actionInfo.needsAction ? urgencyIcons[actionInfo.urgency!] : null
+      const iconColor = actionInfo.needsAction ? urgencyColors[actionInfo.urgency!] : ""
+      
       return (
-        <Link 
-          href={`/applications/${application.id}`} 
-          className="font-semibold hover:text-primary hover:underline transition-colors inline-flex items-center gap-1.5 group"
-        >
-          <span>{application.title}</span>
-          {application.priority && (
-            <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+        <div className="inline-flex items-center gap-1.5">
+          <Link 
+            href={`/applications/${application.id}`} 
+            className="font-semibold hover:text-primary hover:underline transition-colors inline-flex items-center gap-1.5 group"
+          >
+            <span>{application.title}</span>
+            {application.priority && (
+              <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+            )}
+          </Link>
+          {actionInfo.needsAction && ActionIcon && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="inline-flex items-center cursor-help">
+                  <ActionIcon className={cn("h-4 w-4", iconColor)} />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{actionInfo.reason}</p>
+              </TooltipContent>
+            </Tooltip>
           )}
-        </Link>
+        </div>
       )
     },
   },
@@ -204,6 +242,19 @@ export const columns: ColumnDef<ApplicationWithCompany>[] = [
           }).format(new Date(date))}
         </div>
       )
+    },
+  },
+  {
+    id: "actionRequired",
+    header: () => null,
+    cell: () => null,
+    enableHiding: false,
+    enableSorting: false,
+    filterFn: (row, id, value) => {
+      if (value === undefined || value === null) return true
+      const application = row.original
+      const actionInfo = needsAction(application)
+      return value === true ? actionInfo.needsAction : !actionInfo.needsAction
     },
   },
   {

@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { AppShell } from "@/components/layout/app-shell"
 import { ApplicationsList } from "@/components/applications/applications-list"
 import type { Application, Company } from "@/db/schema"
-import { Briefcase, TrendingUp } from "lucide-react"
+import { Briefcase, TrendingUp, AlertTriangle } from "lucide-react"
+import { needsAction } from "@/lib/applications-utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card } from "@/components/ui/card"
 
@@ -54,7 +55,7 @@ export default function ApplicationsPage() {
           </p>
           {/* Stats Cards */}
           {!loading && applications.length > 0 && (
-            <div className="grid gap-4 md:grid-cols-4 mt-6">
+            <div className="grid gap-4 md:grid-cols-5 mt-6">
               <Card className="p-4 bg-linear-to-br from-card to-card/50">
                 <div className="flex items-center justify-between">
                   <div>
@@ -102,6 +103,19 @@ export default function ApplicationsPage() {
                   </div>
                   <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
                     <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-500" />
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-4 bg-linear-to-br from-card to-card/50 border-orange-500/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Action requise</p>
+                    <p className="text-2xl font-bold mt-1 text-orange-600 dark:text-orange-400">
+                      {applications.filter(a => needsAction(a).needsAction).length}
+                    </p>
+                  </div>
+                  <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                    <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                   </div>
                 </div>
               </Card>
