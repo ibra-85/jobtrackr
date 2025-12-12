@@ -64,6 +64,13 @@
       "when": 1765570007650,
       "tag": "0008_needy_exodus",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1765574132011,
+      "tag": "0009_known_rumiko_fujikawa",
+      "breakpoints": true
     }
   ]
 }

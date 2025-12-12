@@ -157,5 +157,65 @@ export type Reminder = {
   completedAt?: Date
 }
 
+// Types pour la gamification
+export type BadgeType =
+  | "first_application"
+  | "first_interview"
+  | "first_acceptance"
+  | "applications_10"
+  | "applications_50"
+  | "applications_100"
+  | "streak_7"
+  | "streak_30"
+  | "streak_100"
+  | "cv_created"
+  | "letter_created"
+  | "ai_used"
+  | "profile_complete"
+
+export type UserBadge = {
+  id: string
+  userId: string
+  badgeType: BadgeType
+  earnedAt: Date
+}
+
+export type UserPoint = {
+  id: string
+  userId: string
+  points: number
+  reason: string
+  metadata?: Record<string, unknown>
+  createdAt: Date
+}
+
+export type UserStreak = {
+  id: string
+  userId: string
+  currentStreak: number
+  longestStreak: number
+  lastActivityDate?: Date
+  updatedAt: Date
+}
+
+export type GoalType = "applications_count" | "interviews_count" | "streak_days" | "points_earned"
+
+export type GoalPeriod = "daily" | "weekly" | "monthly"
+
+export type UserGoal = {
+  id: string
+  userId: string
+  type: GoalType
+  period: GoalPeriod
+  target: number
+  current: number
+  startDate: Date
+  endDate?: Date
+  completed: boolean
+  completedAt?: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
 
 

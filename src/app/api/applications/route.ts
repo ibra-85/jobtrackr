@@ -8,6 +8,8 @@ import { validateRequest } from "@/lib/validation/helpers"
 import type { ApplicationsListResponse, ApplicationResponse } from "@/types/api"
 import { NotFoundError } from "@/lib/api/errors"
 import { generateAutomaticReminders } from "@/lib/reminders-utils"
+import { awardPoints, updateStreak, checkAndAwardBadges } from "@/lib/gamification/gamification.service"
+import { POINTS } from "@/lib/gamification/gamification.service"
 
 /**
  * GET /api/applications
@@ -93,6 +95,13 @@ export async function POST(request: NextRequest) {
 
     // Générer automatiquement les rappels
     await generateAutomaticReminders(session.user.id, application)
+
+    // Gamification : attribuer des points et mettre à jour le streak
+    await awardPoints(session.user.id, POINTS.APPLICATION_CREATED, "application_created", {
+      applicationId: application.id,
+    })
+    await updateStreak(session.user.id)
+    await checkAndAwardBadges(session.user.id)
 
     // Récupérer la candidature créée avec l'entreprise (JOIN optimisé)
     const applicationWithCompany = await applicationsRepository.getByIdWithCompany(

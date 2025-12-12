@@ -384,3 +384,138 @@ export const remindersRelations = relations(reminders, ({ one }) => ({
   }),
 }))
 
+// Enum pour les types de badges
+export const badgeTypeEnum = pgEnum("badge_type", [
+  "first_application", // Première candidature
+  "first_interview", // Premier entretien
+  "first_acceptance", // Première acceptation
+  "applications_10", // 10 candidatures
+  "applications_50", // 50 candidatures
+  "applications_100", // 100 candidatures
+  "streak_7", // Série de 7 jours
+  "streak_30", // Série de 30 jours
+  "streak_100", // Série de 100 jours
+  "cv_created", // CV créé
+  "letter_created", // Lettre créée
+  "ai_used", // Utilisation de l'IA
+  "profile_complete", // Profil complété
+])
+
+// Table pour les badges utilisateur
+export const userBadges = pgTable(
+  "user_badges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    badgeType: badgeTypeEnum("badge_type").notNull(),
+    earnedAt: timestamp("earned_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("idx_user_badges_user_id").on(table.userId),
+    badgeTypeIdx: index("idx_user_badges_badge_type").on(table.badgeType),
+    uniqueUserBadge: index("idx_user_badges_unique").on(table.userId, table.badgeType),
+  }),
+)
+
+// Table pour les points utilisateur (historique des points gagnés)
+export const userPoints = pgTable(
+  "user_points",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    points: text("points").notNull(), // Nombre de points (peut être négatif)
+    reason: text("reason").notNull(), // Raison (ex: "application_created", "badge_earned")
+    metadata: jsonb("metadata"), // Métadonnées supplémentaires
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("idx_user_points_user_id").on(table.userId),
+    createdAtIdx: index("idx_user_points_created_at").on(table.createdAt),
+  }),
+)
+
+// Table pour les streaks (séries de jours consécutifs)
+export const userStreaks = pgTable(
+  "user_streaks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    currentStreak: text("current_streak").notNull().default("0"), // Série actuelle
+    longestStreak: text("longest_streak").notNull().default("0"), // Plus longue série
+    lastActivityDate: timestamp("last_activity_date", { withTimezone: true }), // Dernière activité
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("idx_user_streaks_user_id").on(table.userId),
+    uniqueUserStreak: index("idx_user_streaks_unique").on(table.userId),
+  }),
+)
+
+// Enum pour les types d'objectifs
+export const goalTypeEnum = pgEnum("goal_type", [
+  "applications_count", // Nombre de candidatures
+  "interviews_count", // Nombre d'entretiens
+  "streak_days", // Série de jours
+  "points_earned", // Points gagnés
+])
+
+// Enum pour la période des objectifs
+export const goalPeriodEnum = pgEnum("goal_period", [
+  "daily", // Quotidien
+  "weekly", // Hebdomadaire
+  "monthly", // Mensuel
+])
+
+// Table pour les objectifs utilisateur
+export const userGoals = pgTable(
+  "user_goals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    type: goalTypeEnum("type").notNull(),
+    period: goalPeriodEnum("period").notNull(),
+    target: text("target").notNull(), // Objectif (ex: "10" pour 10 candidatures)
+    current: text("current").notNull().default("0"), // Progression actuelle
+    startDate: timestamp("start_date", { withTimezone: true }).notNull().defaultNow(),
+    endDate: timestamp("end_date", { withTimezone: true }), // Date de fin (null pour objectifs récurrents)
+    completed: boolean("completed").notNull().default(false),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("idx_user_goals_user_id").on(table.userId),
+    periodIdx: index("idx_user_goals_period").on(table.period),
+    completedIdx: index("idx_user_goals_completed").on(table.completed),
+  }),
+)
+
+// Relations pour la gamification
+export const userBadgesRelations = relations(userBadges, ({ one }) => ({
+  user: one(user, {
+    fields: [userBadges.userId],
+    references: [user.id],
+  }),
+}))
+
+export const userPointsRelations = relations(userPoints, ({ one }) => ({
+  user: one(user, {
+    fields: [userPoints.userId],
+    references: [user.id],
+  }),
+}))
+
+export const userStreaksRelations = relations(userStreaks, ({ one }) => ({
+  user: one(user, {
+    fields: [userStreaks.userId],
+    references: [user.id],
+  }),
+}))
+
+export const userGoalsRelations = relations(userGoals, ({ one }) => ({
+  user: one(user, {
+    fields: [userGoals.userId],
+    references: [user.id],
+  }),
+}))
+

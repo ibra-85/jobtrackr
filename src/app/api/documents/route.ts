@@ -3,6 +3,8 @@ import { requireAuth, handleApiError } from "@/lib/api/helpers"
 import { documentsRepository } from "@/db/repositories/documents.repository"
 import { CreateDocumentSchema } from "@/lib/validation/schemas"
 import { validateRequest } from "@/lib/validation/helpers"
+import { awardPoints, updateStreak, checkAndAwardBadges } from "@/lib/gamification/gamification.service"
+import { POINTS } from "@/lib/gamification/gamification.service"
 import type { ApiResponse } from "@/types/api"
 import type { Document } from "@/db/schema"
 
@@ -55,6 +57,14 @@ export async function POST(request: NextRequest) {
       title,
       content,
     })
+
+    // Gamification : attribuer des points et mettre à jour le streak
+    await awardPoints(session.user.id, POINTS.DOCUMENT_CREATED, "document_created", {
+      documentId: document.id,
+      documentType: type,
+    })
+    await updateStreak(session.user.id)
+    await checkAndAwardBadges(session.user.id)
 
     return NextResponse.json(
       {

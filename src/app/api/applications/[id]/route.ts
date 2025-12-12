@@ -8,6 +8,8 @@ import { UpdateApplicationSchema, UpdateApplicationStatusSchema } from "@/lib/va
 import { validateRequest } from "@/lib/validation/helpers"
 import { APPLICATION_STATUS_LABELS } from "@/lib/constants/labels"
 import { generateAutomaticReminders } from "@/lib/reminders-utils"
+import { awardPoints, updateStreak, checkAndAwardBadges } from "@/lib/gamification/gamification.service"
+import { POINTS } from "@/lib/gamification/gamification.service"
 import type {
   ApplicationStatus,
   ContractType,
@@ -136,6 +138,14 @@ export async function PUT(
           newStatus: newStatus,
         },
       })
+
+      // Gamification : attribuer des points pour acceptation
+      if (newStatus === "accepted") {
+        await awardPoints(session.user.id, POINTS.APPLICATION_ACCEPTED, "application_accepted", {
+          applicationId: id,
+        })
+        await checkAndAwardBadges(session.user.id)
+      }
     } else if (title !== undefined && existingApplication.title !== title) {
       // Modification du titre
       await activitiesRepository.create(session.user.id, {
@@ -176,6 +186,10 @@ export async function PUT(
     if (appliedAt !== undefined || deadline !== undefined || status !== undefined) {
       await generateAutomaticReminders(session.user.id, applicationWithCompany)
     }
+
+    // Gamification : mettre à jour le streak et vérifier les badges
+    await updateStreak(session.user.id)
+    await checkAndAwardBadges(session.user.id)
 
     return NextResponse.json({
       data: applicationWithCompany,

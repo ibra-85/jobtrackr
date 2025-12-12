@@ -18,6 +18,7 @@ const pageTitles: Record<string, string> = {
   "/applications": "Candidatures",
   "/reminders": "Rappels",
   "/documents": "CV & Lettres",
+  "/gamification": "Gamification",
   "/settings": "Paramètres",
 }
 

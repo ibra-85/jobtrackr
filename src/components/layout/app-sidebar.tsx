@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Briefcase, LayoutDashboard, FileText, Settings, HelpCircle, Search, FileBadge, Calendar, Bell } from "lucide-react"
+import { Briefcase, LayoutDashboard, FileText, Settings, HelpCircle, Search, FileBadge, Calendar, Bell, Trophy } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -42,6 +42,11 @@ const data = {
       title: "CV & Lettres",
       url: "/documents",
       icon: FileBadge,
+    },
+    {
+      title: "Gamification",
+      url: "/gamification",
+      icon: Trophy,
     },
   ],
   navSecondary: [

@@ -7,6 +7,8 @@ import { activitiesRepository } from "@/db/repositories/activities.repository"
 import { CreateInterviewSchema } from "@/lib/validation/schemas"
 import { validateRequest } from "@/lib/validation/helpers"
 import { generateInterviewReminder } from "@/lib/reminders-utils"
+import { awardPoints, updateStreak, checkAndAwardBadges } from "@/lib/gamification/gamification.service"
+import { POINTS } from "@/lib/gamification/gamification.service"
 import type { ApiResponse } from "@/types/api"
 import type { Interview } from "@/db/schema"
 
@@ -103,6 +105,14 @@ export async function POST(
 
     // Générer automatiquement un rappel pour l'entretien (1 jour avant)
     await generateInterviewReminder(session.user.id, interview)
+
+    // Gamification : attribuer des points et mettre à jour le streak
+    await awardPoints(session.user.id, POINTS.INTERVIEW_SCHEDULED, "interview_scheduled", {
+      interviewId: interview.id,
+      applicationId: id,
+    })
+    await updateStreak(session.user.id)
+    await checkAndAwardBadges(session.user.id)
 
     return NextResponse.json(
       {
