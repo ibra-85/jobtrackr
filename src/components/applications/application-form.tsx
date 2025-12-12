@@ -40,12 +40,14 @@ import type {
   ContractType,
   ApplicationSource,
 } from "@/db/schema"
-import { Search, Check, ChevronsUpDown, Building2, Plus, Star } from "lucide-react"
+import { Search, Check, ChevronsUpDown, Building2, Plus, Star, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { APPLICATION_STATUS_OPTIONS, CONTRACT_TYPE_OPTIONS } from "@/lib/constants/labels"
+import { APPLICATION_STATUS_OPTIONS, CONTRACT_TYPE_OPTIONS, APPLICATION_SOURCE_LABELS } from "@/lib/constants/labels"
 import { DatePicker } from "@/components/ui/date-picker"
 import MultipleSelector, { Option } from "@/components/ui/multiselect"
+import { ImportOfferDialog } from "./import-offer-dialog"
+import type { ParsedOffer } from "@/lib/offer-parser"
 
 interface ApplicationFormProps {
   open: boolean
@@ -228,6 +230,7 @@ export function ApplicationForm({
   const [salaryRange, setSalaryRange] = useState("")
   const [source, setSource] = useState<ApplicationSource | "">("")
   const [jobUrl, setJobUrl] = useState("")
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   const isEditing = !!application
 
@@ -520,19 +523,95 @@ export function ApplicationForm({
     }
   }
 
+  const handleImportOffer = async (parsedOffer: ParsedOffer) => {
+    // Pré-remplir les champs du formulaire avec les données parsées
+    if (parsedOffer.title) {
+      setTitle(parsedOffer.title)
+    }
+    if (parsedOffer.company) {
+      setCompanySearch(parsedOffer.company)
+      // Rechercher l'entreprise ou la créer si elle n'existe pas
+      const searchTimeout = setTimeout(async () => {
+        await searchCompanies(parsedOffer.company!)
+      }, 100)
+      setTimeout(() => clearTimeout(searchTimeout), 1000)
+    }
+    if (parsedOffer.location) {
+      setLocation(parsedOffer.location)
+    }
+    if (parsedOffer.contractType) {
+      const contractTypeMap: Record<string, ContractType> = {
+        cdi: "cdi",
+        cdd: "cdd",
+        stage: "stage",
+        alternance: "alternance",
+        freelance: "freelance",
+      }
+      const mappedType = contractTypeMap[parsedOffer.contractType.toLowerCase()]
+      if (mappedType) {
+        setContractType(mappedType)
+        setContractTypes([mappedType])
+      }
+    }
+    if (parsedOffer.salaryRange) {
+      setSalaryRange(parsedOffer.salaryRange)
+    }
+    if (parsedOffer.source) {
+      const sourceMap: Record<string, ApplicationSource> = {
+        linkedin: "linkedin",
+        indeed: "indeed",
+        welcome_to_the_jungle: "welcome_to_the_jungle",
+        site_carriere: "site_carriere",
+      }
+      const mappedSource = sourceMap[parsedOffer.source]
+      if (mappedSource) {
+        setSource(mappedSource)
+      }
+    }
+    if (parsedOffer.jobUrl) {
+      setJobUrl(parsedOffer.jobUrl)
+    }
+    if (parsedOffer.description) {
+      setNotes(parsedOffer.description)
+    }
+    toast.success("Informations importées avec succès")
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
-        <DialogHeader className="shrink-0">
-          <DialogTitle className="text-2xl">
-            {isEditing ? "Modifier la candidature" : "Nouvelle candidature"}
-          </DialogTitle>
-          <DialogDescription className="text-base">
-            {isEditing
-              ? "Modifie les informations de ta candidature."
-              : "Ajoute une nouvelle candidature à suivre."}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <ImportOfferDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImportOffer}
+      />
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+          <DialogHeader className="shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl">
+                  {isEditing ? "Modifier la candidature" : "Nouvelle candidature"}
+                </DialogTitle>
+                <DialogDescription className="text-base">
+                  {isEditing
+                    ? "Modifie les informations de ta candidature."
+                    : "Ajoute une nouvelle candidature à suivre."}
+                </DialogDescription>
+              </div>
+              {!isEditing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setImportDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Importer une offre
+                </Button>
+              )}
+            </div>
+          </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="space-y-5 py-4 px-2 overflow-y-auto flex-1 pr-2 scrollbar-thin">
             <div className="space-y-2 relative">
@@ -906,10 +985,11 @@ export function ApplicationForm({
             >
               {loading ? "Enregistrement..." : isEditing ? "Modifier" : "Créer"}
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+        </DialogFooter>
+      </form>
+    </DialogContent>
     </Dialog>
+    </>
   )
 }
 
