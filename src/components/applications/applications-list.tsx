@@ -1,8 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { FileText, Briefcase, Plus, AlertTriangle } from "lucide-react"
+import { FileText, Briefcase, Plus, AlertTriangle, LayoutGrid, List } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { Application, Company, ApplicationStatus } from "@/db/schema"
 import { ApplicationForm } from "./application-form"
 import { toast } from "sonner"
@@ -10,6 +12,7 @@ import { columns, type ApplicationWithCompany } from "./columns"
 import { DataTable } from "./data-table"
 import { DataTableToolbar } from "./data-table-toolbar"
 import { DataTableRowActions } from "./data-table-row-actions"
+import { KanbanBoard } from "./kanban-board"
 import {
   Dialog,
   DialogContent,
@@ -18,7 +21,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 
 interface ApplicationsListProps {
   applications: (Application & { company?: Company })[]
@@ -27,6 +29,7 @@ interface ApplicationsListProps {
 
 export function ApplicationsList({ applications, onRefresh }: ApplicationsListProps) {
   const [formOpen, setFormOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list")
   const [editingApplication, setEditingApplication] = useState<
     ApplicationWithCompany | undefined
   >(undefined)
@@ -40,6 +43,7 @@ export function ApplicationsList({ applications, onRefresh }: ApplicationsListPr
     setEditingApplication(undefined)
     setFormOpen(true)
   }
+
 
   const handleEdit = (application: ApplicationWithCompany) => {
     setEditingApplication(application)
@@ -104,7 +108,7 @@ export function ApplicationsList({ applications, onRefresh }: ApplicationsListPr
     }
   }
 
-  const handleStatusChange = async (id: string, status: string) => {
+  const handleStatusChange = async (id: string, status: string | ApplicationStatus) => {
     setUpdatingStatusId(id)
     try {
       const response = await fetch(`/api/applications/${id}/status`, {
@@ -127,6 +131,7 @@ export function ApplicationsList({ applications, onRefresh }: ApplicationsListPr
       toast.error(
         error instanceof Error ? error.message : "Erreur lors du changement de statut",
       )
+      // Ne pas throw l'erreur pour la compatibilité avec DataTableRowActions
     } finally {
       setUpdatingStatusId(null)
     }
@@ -234,12 +239,35 @@ export function ApplicationsList({ applications, onRefresh }: ApplicationsListPr
 
   return (
     <div className="space-y-4">
-      <DataTable 
-        columns={columnsWithActions} 
-        data={applications} 
-        onCreateClick={handleCreate}
-        onRefresh={onRefresh}
-      />
+      <div className="flex items-center justify-between">
+        <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "list" | "kanban")}>
+          <TabsList>
+            <TabsTrigger value="list" className="gap-2">
+              <List className="h-4 w-4" />
+              Liste
+            </TabsTrigger>
+            <TabsTrigger value="kanban" className="gap-2">
+              <LayoutGrid className="h-4 w-4" />
+              Kanban
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {viewMode === "list" ? (
+        <DataTable 
+          columns={columnsWithActions} 
+          data={applications} 
+          onCreateClick={handleCreate}
+          onRefresh={onRefresh}
+        />
+      ) : (
+        <KanbanBoard
+          applications={applications}
+          onStatusChange={(id, status) => handleStatusChange(id, status)}
+          onRefresh={onRefresh}
+        />
+      )}
       <ApplicationForm
         open={formOpen}
         onOpenChange={(open) => {
