@@ -152,6 +152,7 @@ export const applicationsRepository = {
       salaryRange?: string
       source?: ApplicationSource
       jobUrl?: string
+      importSource?: "url" | "text" | "manual"
     },
   ): Promise<Application> {
     const [created] = await db
@@ -171,6 +172,7 @@ export const applicationsRepository = {
         salaryRange: data.salaryRange || null,
         source: data.source || null,
         jobUrl: data.jobUrl || null,
+        importSource: data.importSource || null,
       })
       .returning()
 
@@ -192,10 +194,12 @@ export const applicationsRepository = {
       appliedAt?: Date
       deadline?: Date
       contractType?: ContractType
+      contractTypes?: ContractType[]
       location?: string
       salaryRange?: string
       source?: ApplicationSource
       jobUrl?: string
+      importSource?: "url" | "text" | "manual"
     }>,
   ): Promise<Application> {
     const updateData: {
@@ -220,6 +224,7 @@ export const applicationsRepository = {
         | "autre"
         | null
       jobUrl?: string | null
+      importSource?: "url" | "text" | "manual" | null
       updatedAt?: Date
     } = {}
 
@@ -238,6 +243,7 @@ export const applicationsRepository = {
     if (data.salaryRange !== undefined) updateData.salaryRange = data.salaryRange || null
     if (data.source !== undefined) updateData.source = data.source || null
     if (data.jobUrl !== undefined) updateData.jobUrl = data.jobUrl || null
+    if (data.importSource !== undefined) updateData.importSource = data.importSource || null
     updateData.updatedAt = new Date()
 
     const [updated] = await db
@@ -283,6 +289,7 @@ function mapRowToApplication(row: typeof applications.$inferSelect): Application
     salaryRange: row.salaryRange || undefined,
     source: (row.source as ApplicationSource | null) || undefined,
     jobUrl: row.jobUrl || undefined,
+    importSource: (row.importSource as "url" | "text" | "manual" | null) || undefined,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }

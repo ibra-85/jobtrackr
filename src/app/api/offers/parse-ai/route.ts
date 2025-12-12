@@ -72,6 +72,12 @@ export async function POST(request: NextRequest) {
           .optional()
           .describe("Source de l'offre détectée depuis l'URL ou le contexte"),
         description: z.string().optional().describe("Description/résumé de l'offre (2-3 phrases)"),
+        summary: z
+          .string()
+          .optional()
+          .describe(
+            "Résumé structuré de l'offre en 3-5 bullet points. Chaque point doit être sur une nouvelle ligne avec un tiret. Mettre en évidence : stack technique, expérience requise, localisation/remote, salaire (si présent), avantages clés."
+          ),
       }),
       prompt: `Tu es un expert en extraction d'informations d'offres d'emploi. Analyse ce texte et extrais TOUTES les informations disponibles, en particulier le TITRE DU POSTE et le NOM DE L'ENTREPRISE qui sont les informations les plus importantes.
 
@@ -114,6 +120,22 @@ INSTRUCTIONS IMPORTANTES :
 
 8. DESCRIPTION :
    - Résume la description du poste en 2-3 phrases si disponible
+
+9. RÉSUMÉ STRUCTURÉ (SUMMARY) :
+   - Crée un résumé en 3-5 bullet points (une ligne par point avec un tiret "-")
+   - Mettre en évidence les éléments critiques :
+     * Stack technique principale (ex: "React, TypeScript, Node.js")
+     * Expérience requise (ex: "3-5 ans d'expérience en développement")
+     * Localisation et mode de travail (ex: "Remote complet ou hybride Paris")
+     * Fourchette salariale si mentionnée (ex: "45k€-60k€/an")
+     * Avantages clés ou points forts de l'offre (ex: "Équipe internationale, projets innovants")
+   - Format : Chaque point sur une nouvelle ligne avec un tiret "- " au début
+   - Exemple :
+     - Stack : React, TypeScript, Node.js
+     - Expérience : 3-5 ans
+     - Localisation : Remote ou hybride Paris
+     - Salaire : 45k€-60k€/an
+     - Avantages : Équipe internationale, projets innovants
 
 IMPORTANT : Le titre et l'entreprise sont les informations les plus critiques. Analyse bien le texte pour les trouver, même s'ils ne sont pas explicitement formatés.`,
     })

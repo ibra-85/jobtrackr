@@ -12,6 +12,7 @@ export interface ParsedOffer {
   description?: string
   source?: string
   jobUrl?: string
+  summary?: string // Résumé IA de l'offre (bullet points)
 }
 
 /**

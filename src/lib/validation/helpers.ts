@@ -11,7 +11,7 @@ export function validateRequest<T>(
   const result = schema.safeParse(data)
 
   if (!result.success) {
-    const errors = result.error.errors.map((err) => ({
+    const errors = result.error.issues.map((err) => ({
       path: err.path.join("."),
       message: err.message,
     }))
@@ -38,7 +38,7 @@ export function validateRequest<T>(
  * Helper pour formater les erreurs Zod en message lisible
  */
 export function formatZodError(error: z.ZodError): string {
-  const firstError = error.errors[0]
+  const firstError = error.issues[0]
   if (firstError) {
     const path = firstError.path.length > 0 ? `${firstError.path.join(".")}: ` : ""
     return `${path}${firstError.message}`

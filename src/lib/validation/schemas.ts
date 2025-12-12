@@ -26,6 +26,8 @@ export const ApplicationSourceSchema = z.enum([
   "autre",
 ])
 
+export const ImportSourceSchema = z.enum(["url", "text", "manual"])
+
 export const CompanySizeSchema = z.enum([
   "1-10",
   "11-50",
@@ -104,6 +106,7 @@ export const CreateApplicationSchema = z.object({
     .url("L'URL de l'offre n'est pas valide")
     .optional()
     .or(z.literal("")),
+  importSource: ImportSourceSchema.optional(),
 })
 
 // Schéma pour mettre à jour une candidature

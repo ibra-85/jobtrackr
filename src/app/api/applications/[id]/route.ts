@@ -54,7 +54,7 @@ export async function PUT(
     const body = await request.json()
 
     // Vérifier que la candidature existe et appartient à l'utilisateur
-    const existingApplication = await applicationsRepository.getById(id, session.user.id)
+    const existingApplication = await applicationsRepository.getByIdWithCompany(id, session.user.id)
     if (!existingApplication) {
       throw new NotFoundError("Candidature")
     }

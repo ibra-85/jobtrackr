@@ -67,7 +67,7 @@ export class ApplicationsService {
       company = await companiesRepository.getById(application.companyId)
     }
 
-    return { ...application, company }
+    return { ...application, company: company || undefined }
   }
 
   /**
@@ -134,7 +134,7 @@ export class ApplicationsService {
       company = await companiesRepository.getById(updated.companyId)
     }
 
-    return { ...updated, company }
+    return { ...updated, company: company || undefined }
   }
 
   /**
@@ -251,7 +251,7 @@ export class ApplicationsService {
       company = await companiesRepository.getById(application.companyId)
     }
 
-    return { ...application, company }
+    return { ...application, company: company || undefined }
   }
 }
 

@@ -196,7 +196,9 @@ export function KanbanBoard({ applications, onStatusChange, onRefresh }: KanbanB
                                   <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
                                 )}
                                 {actionInfo.needsAction && ActionIcon && (
-                                  <ActionIcon className={cn("h-3 w-3", iconColor)} title={actionInfo.reason || ""} />
+                                  <div title={actionInfo.reason || ""}>
+                                    <ActionIcon className={cn("h-3 w-3", iconColor)} />
+                                  </div>
                                 )}
                               </div>
                               {application.appliedAt && (

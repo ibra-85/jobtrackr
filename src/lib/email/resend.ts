@@ -22,9 +22,9 @@ export async function sendEmail({
       from: process.env.RESEND_FROM_EMAIL || "JobTrackr <onboarding@resend.dev>",
       to,
       subject,
-      html,
-      text,
-    })
+      ...(html && { html }),
+      ...(text && { text }),
+    } as any)
 
     if (error) {
       console.error("Erreur lors de l'envoi de l'email:", error)

@@ -197,6 +197,24 @@ export function ImportOfferDialog({ open, onOpenChange, onImport }: ImportOfferD
                   <p className="text-sm mt-1 line-clamp-3">{parsedOffer.description}</p>
                 </div>
               )}
+              {parsedOffer.summary && (
+                <div>
+                  <span className="text-muted-foreground text-sm font-semibold">Résumé IA :</span>
+                  <div className="text-sm mt-1 space-y-1">
+                    {parsedOffer.summary.split("\n").map((line, index) => {
+                      const trimmedLine = line.trim()
+                      if (!trimmedLine) return null
+                      // Si la ligne commence par un tiret, l'afficher tel quel, sinon ajouter un tiret
+                      const displayLine = trimmedLine.startsWith("-") ? trimmedLine : `- ${trimmedLine}`
+                      return (
+                        <p key={index} className="text-muted-foreground">
+                          {displayLine}
+                        </p>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

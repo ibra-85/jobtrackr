@@ -231,6 +231,7 @@ export function ApplicationForm({
   const [source, setSource] = useState<ApplicationSource | "">("")
   const [jobUrl, setJobUrl] = useState("")
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [importSource, setImportSource] = useState<"url" | "text" | "manual" | undefined>(undefined)
 
   const isEditing = !!application
 
@@ -304,6 +305,7 @@ export function ApplicationForm({
       setSalaryRange(application.salaryRange || "")
       setSource(application.source || "")
       setJobUrl(application.jobUrl || "")
+      setImportSource(application.importSource || undefined)
     } else {
       setTitle("")
       setStatus("pending")
@@ -311,14 +313,15 @@ export function ApplicationForm({
       setCompanyId("none")
       setCompanySearch("")
       setNotes("")
-      setAppliedAt("")
-      setDeadline("")
+      setAppliedAt(undefined)
+      setDeadline(undefined)
       setContractType("") // Ancien champ
       setContractTypes([]) // Nouveau champ
       setLocation("")
       setSalaryRange("")
       setSource("")
       setJobUrl("")
+      setImportSource(undefined)
     }
     setNewCompanyName("")
   }, [application, open])
@@ -503,6 +506,7 @@ export function ApplicationForm({
           salaryRange: salaryRange.trim() || undefined,
           source: source || undefined,
           jobUrl: jobUrl.trim() || undefined,
+          importSource: importSource || (isEditing ? undefined : "manual"), // Par défaut "manual" si création manuelle
         }),
       })
 
@@ -524,6 +528,9 @@ export function ApplicationForm({
   }
 
   const handleImportOffer = async (parsedOffer: ParsedOffer) => {
+    // Marquer que cette candidature vient d'un import texte
+    setImportSource("text")
+    
     // Pré-remplir les champs du formulaire avec les données parsées
     if (parsedOffer.title) {
       setTitle(parsedOffer.title)

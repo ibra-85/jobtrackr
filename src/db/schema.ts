@@ -20,6 +20,8 @@ export type ApplicationSource =
   | "email"
   | "autre"
 
+export type ImportSource = "url" | "text" | "manual"
+
 export type Application = {
   id: string
   userId: string
@@ -36,6 +38,7 @@ export type Application = {
   salaryRange?: string
   source?: ApplicationSource
   jobUrl?: string
+  importSource?: ImportSource // Source d'import : url, text, manual
   createdAt: Date
   updatedAt: Date
 }

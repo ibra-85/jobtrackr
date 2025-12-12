@@ -20,6 +20,7 @@ import {
   FileText,
   Link as LinkIcon,
   Star,
+  Mail,
 } from "lucide-react"
 import Link from "next/link"
 import type {
@@ -38,6 +39,7 @@ import { NotesSection } from "@/components/applications/notes-section"
 import { ContactsSection } from "@/components/applications/contacts-section"
 import { InterviewsSection } from "@/components/applications/interviews-section"
 import { CompanyEditDialog } from "@/components/applications/company-edit-dialog"
+import { FollowUpEmailDialog } from "@/components/applications/follow-up-email-dialog"
 import { toast } from "sonner"
 import {
   getLastInteraction,
@@ -81,6 +83,7 @@ export default function ApplicationDetailPage() {
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [companyEditDialogOpen, setCompanyEditDialogOpen] = useState(false)
+  const [followUpEmailDialogOpen, setFollowUpEmailDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchApplication()
@@ -204,10 +207,16 @@ export default function ApplicationDetailPage() {
               )}
             </div>
           </div>
-          <Button onClick={() => setFormOpen(true)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Modifier
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setFollowUpEmailDialogOpen(true)} variant="outline">
+              <Mail className="h-4 w-4 mr-2" />
+              Email de relance
+            </Button>
+            <Button onClick={() => setFormOpen(true)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Modifier
+            </Button>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -561,6 +570,12 @@ export default function ApplicationDetailPage() {
             }}
           />
         )}
+
+        <FollowUpEmailDialog
+          open={followUpEmailDialogOpen}
+          onOpenChange={setFollowUpEmailDialogOpen}
+          applicationId={id}
+        />
       </div>
     </AppShell>
   )

@@ -30,6 +30,8 @@ export const applicationSourceEnum = pgEnum("application_source", [
   "autre",
 ])
 
+export const importSourceEnum = pgEnum("import_source", ["url", "text", "manual"])
+
 export const activityTypeEnum = pgEnum("activity_type", [
   "application_created",
   "application_updated",
@@ -149,6 +151,7 @@ export const applications = pgTable(
     salaryRange: text("salary_range"),
     source: applicationSourceEnum("source"),
     jobUrl: text("job_url"),
+    importSource: importSourceEnum("import_source"), // Source d'import : url, text, manual
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
