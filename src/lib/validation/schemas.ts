@@ -272,3 +272,39 @@ export type UpdateInterviewInput = z.infer<typeof UpdateInterviewSchema>
 export type CreateReminderInput = z.infer<typeof CreateReminderSchema>
 export type UpdateReminderInput = z.infer<typeof UpdateReminderSchema>
 
+// Schémas pour les documents
+export const DocumentTypeSchema = z.enum(["cv", "cover_letter"])
+
+// Schéma pour créer un document
+export const CreateDocumentSchema = z.object({
+  type: DocumentTypeSchema,
+  title: z
+    .string()
+    .min(1, "Le titre est requis")
+    .max(255, "Le titre est trop long (maximum 255 caractères)")
+    .trim(),
+  content: z
+    .string()
+    .min(1, "Le contenu est requis")
+    .max(50000, "Le contenu est trop long (maximum 50000 caractères)"),
+})
+
+// Schéma pour mettre à jour un document
+export const UpdateDocumentSchema = z.object({
+  title: z
+    .string()
+    .min(1, "Le titre est requis")
+    .max(255, "Le titre est trop long (maximum 255 caractères)")
+    .trim()
+    .optional(),
+  content: z
+    .string()
+    .min(1, "Le contenu est requis")
+    .max(50000, "Le contenu est trop long (maximum 50000 caractères)")
+    .optional(),
+})
+
+// Types TypeScript inférés
+export type CreateDocumentInput = z.infer<typeof CreateDocumentSchema>
+export type UpdateDocumentInput = z.infer<typeof UpdateDocumentSchema>
+
