@@ -12,8 +12,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { FileText, Sparkles } from "lucide-react"
-import { parseOfferText, cleanOfferText, type ParsedOffer } from "@/lib/offer-parser"
+import { FileText, Sparkles, Brain } from "lucide-react"
+import { parseOfferText, parseOfferWithAI, cleanOfferText, type ParsedOffer } from "@/lib/offer-parser"
 import { toast } from "sonner"
 
 interface ImportOfferDialogProps {
@@ -25,6 +25,7 @@ interface ImportOfferDialogProps {
 export function ImportOfferDialog({ open, onOpenChange, onImport }: ImportOfferDialogProps) {
   const [text, setText] = useState("")
   const [parsing, setParsing] = useState(false)
+  const [parsingWithAI, setParsingWithAI] = useState(false)
   const [parsedOffer, setParsedOffer] = useState<ParsedOffer | null>(null)
 
   const handleParse = () => {
@@ -44,6 +45,33 @@ export function ImportOfferDialog({ open, onOpenChange, onImport }: ImportOfferD
       toast.error("Erreur lors de l'analyse de l'offre")
     } finally {
       setParsing(false)
+    }
+  }
+
+  const handleParseWithAI = async () => {
+    if (!text.trim()) {
+      toast.error("Veuillez coller une offre d'emploi")
+      return
+    }
+
+    setParsingWithAI(true)
+    try {
+      const cleaned = cleanOfferText(text)
+      const parsed = await parseOfferWithAI(cleaned)
+      setParsedOffer(parsed)
+      toast.success("Offre analysée avec l'IA avec succès")
+    } catch (error) {
+      console.error("Erreur lors du parsing IA:", error)
+      const errorMessage =
+        error instanceof Error ? error.message : "Erreur lors de l'analyse IA de l'offre"
+      toast.error(errorMessage)
+      // Fallback vers le parsing classique
+      if (errorMessage.includes("Ollama")) {
+        toast.info("Utilisation du parsing classique en fallback")
+        handleParse()
+      }
+    } finally {
+      setParsingWithAI(false)
     }
   }
 
@@ -92,15 +120,29 @@ export function ImportOfferDialog({ open, onOpenChange, onImport }: ImportOfferD
             </p>
           </div>
 
-          <Button
-            onClick={handleParse}
-            disabled={!text.trim() || parsing}
-            className="w-full"
-            variant="outline"
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            {parsing ? "Analyse en cours..." : "Analyser l'offre"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleParse}
+              disabled={!text.trim() || parsing || parsingWithAI}
+              className="flex-1"
+              variant="outline"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              {parsing ? "Analyse..." : "Analyser (classique)"}
+            </Button>
+            <Button
+              onClick={handleParseWithAI}
+              disabled={!text.trim() || parsing || parsingWithAI}
+              className="flex-1"
+              variant="default"
+            >
+              <Brain className="h-4 w-4 mr-2" />
+              {parsingWithAI ? "Analyse IA..." : "Analyser avec IA"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            L'analyse IA nécessite Ollama en local. Le parsing classique fonctionne toujours.
+          </p>
 
           {parsedOffer && (
             <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
@@ -160,10 +202,10 @@ export function ImportOfferDialog({ open, onOpenChange, onImport }: ImportOfferD
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={parsing}>
+          <Button variant="outline" onClick={handleClose} disabled={parsing || parsingWithAI}>
             Annuler
           </Button>
-          <Button onClick={handleImport} disabled={!parsedOffer || parsing}>
+          <Button onClick={handleImport} disabled={!parsedOffer || parsing || parsingWithAI}>
             Importer dans le formulaire
           </Button>
         </DialogFooter>

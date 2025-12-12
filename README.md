@@ -36,6 +36,7 @@ cp .env.example .env.local
    - **DATABASE_URL** : Récupère l'URL de connexion depuis ton dashboard Neon
    - **BETTER_AUTH_URL** et **NEXT_PUBLIC_BETTER_AUTH_URL** : URL de base de l'application (http://localhost:3000 en dev)
    - **BETTER_AUTH_SECRET** : Génère une clé secrète avec `openssl rand -base64 32`
+   - **OLLAMA_MODEL** (optionnel) : Modèle Ollama à utiliser pour l'IA (par défaut: `llama3.2`)
 
 5. Crée les tables dans Neon :
 ```bash
@@ -66,6 +67,23 @@ bun dev
 2. Récupère l'URL de connexion PostgreSQL depuis le dashboard
 3. Ajoute-la dans `.env.local` comme `DATABASE_URL`
 4. Exécute les migrations avec `npm run db:push`
+
+### 🤖 Configuration Ollama (Optionnel - pour l'IA)
+
+Pour utiliser l'analyse IA des offres d'emploi :
+
+1. **Installer Ollama** : https://ollama.com/download
+2. **Télécharger un modèle** :
+   ```bash
+   ollama pull llama3.2  # Modèle léger recommandé pour le dev
+   ```
+3. **Démarrer Ollama** (généralement automatique après installation)
+4. **Configurer dans `.env.local`** :
+   ```env
+   OLLAMA_MODEL=llama3.2
+   ```
+
+Voir [OLLAMA_SETUP.md](./OLLAMA_SETUP.md) pour plus de détails.
 
 ## Learn More
 
