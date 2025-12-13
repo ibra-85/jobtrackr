@@ -10,6 +10,7 @@ export const applicationStatusEnum = pgEnum("application_status", [
 ])
 
 export const documentTypeEnum = pgEnum("document_type", ["cv", "cover_letter"])
+export const documentFormatEnum = pgEnum("document_format", ["markdown", "plain_text", "html"])
 
 export const contractTypeEnum = pgEnum("contract_type", [
   "cdi",
@@ -170,11 +171,55 @@ export const documents = pgTable(
     type: documentTypeEnum("type").notNull(),
     title: text("title").notNull(),
     content: text("content").notNull(),
+    format: documentFormatEnum("format").notNull().default("plain_text"), // Format du document
+    templateId: uuid("template_id").references(() => documentTemplates.id, { onDelete: "set null" }),
+    metadata: jsonb("metadata"), // Métadonnées supplémentaires (auteur, tags, etc.)
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     userIdIdx: index("idx_documents_user_id").on(table.userId),
+    typeIdx: index("idx_documents_type").on(table.type),
+  }),
+)
+
+// Table pour les templates de documents
+export const documentTemplates = pgTable(
+  "document_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    description: text("description"),
+    type: documentTypeEnum("type").notNull(),
+    format: documentFormatEnum("format").notNull().default("markdown"),
+    content: text("content").notNull(), // Contenu template avec placeholders
+    isPublic: boolean("is_public").notNull().default(true), // Templates publics ou privés
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }), // null = template système
+    thumbnail: text("thumbnail"), // URL ou path d'une image de preview
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    typeIdx: index("idx_document_templates_type").on(table.type),
+    isPublicIdx: index("idx_document_templates_is_public").on(table.isPublic),
+  }),
+)
+
+// Table pour les versions de documents
+export const documentVersions = pgTable(
+  "document_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+    version: text("version").notNull(), // v1.0, v1.1, etc.
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    format: documentFormatEnum("format").notNull(),
+    changelog: text("changelog"), // Description des changements
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    documentIdIdx: index("idx_document_versions_document_id").on(table.documentId),
   }),
 )
 
@@ -516,6 +561,26 @@ export const userGoalsRelations = relations(userGoals, ({ one }) => ({
   user: one(user, {
     fields: [userGoals.userId],
     references: [user.id],
+  }),
+}))
+
+// Relations pour les documents
+export const documentsRelations = relations(documents, ({ one, many }) => ({
+  template: one(documentTemplates, {
+    fields: [documents.templateId],
+    references: [documentTemplates.id],
+  }),
+  versions: many(documentVersions),
+}))
+
+export const documentTemplatesRelations = relations(documentTemplates, ({ many }) => ({
+  documents: many(documents),
+}))
+
+export const documentVersionsRelations = relations(documentVersions, ({ one }) => ({
+  document: one(documents, {
+    fields: [documentVersions.documentId],
+    references: [documents.id],
   }),
 }))
 

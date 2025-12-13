@@ -274,6 +274,7 @@ export type UpdateReminderInput = z.infer<typeof UpdateReminderSchema>
 
 // Schémas pour les documents
 export const DocumentTypeSchema = z.enum(["cv", "cover_letter"])
+export const DocumentFormatSchema = z.enum(["markdown", "plain_text", "html"])
 
 // Schéma pour créer un document
 export const CreateDocumentSchema = z.object({
@@ -287,6 +288,9 @@ export const CreateDocumentSchema = z.object({
     .string()
     .min(1, "Le contenu est requis")
     .max(50000, "Le contenu est trop long (maximum 50000 caractères)"),
+  format: DocumentFormatSchema.optional().default("plain_text"),
+  templateId: z.string().uuid().optional().nullable(),
+  metadata: z.record(z.unknown()).optional().nullable(),
 })
 
 // Schéma pour mettre à jour un document
@@ -302,6 +306,8 @@ export const UpdateDocumentSchema = z.object({
     .min(1, "Le contenu est requis")
     .max(50000, "Le contenu est trop long (maximum 50000 caractères)")
     .optional(),
+  format: DocumentFormatSchema.optional(),
+  metadata: z.record(z.unknown()).optional().nullable(),
 })
 
 // Types TypeScript inférés

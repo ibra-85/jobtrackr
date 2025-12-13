@@ -282,7 +282,7 @@ export default function DocumentsPageNew() {
               </div>
             ) : filteredDocuments.length === 0 ? (
               <EmptyState
-                icons={[FileBadge]}
+                icon={FileBadge}
                 title={searchQuery ? "Aucun document trouvé" : "Aucun document"}
                 description={
                   searchQuery
@@ -290,12 +290,12 @@ export default function DocumentsPageNew() {
                     : "Crée ton premier document pour commencer"
                 }
                 action={
-                  !searchQuery
-                    ? {
-                        label: "Créer un document",
-                        onClick: () => setCreateDialogOpen(true),
-                      }
-                    : undefined
+                  !searchQuery ? (
+                    <Button onClick={() => setCreateDialogOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Créer un document
+                    </Button>
+                  ) : undefined
                 }
               />
             ) : (

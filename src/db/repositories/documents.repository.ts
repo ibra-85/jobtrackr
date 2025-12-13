@@ -6,7 +6,7 @@
 import { db } from "../index"
 import { documents } from "../drizzle-schema"
 import { eq, and, desc } from "drizzle-orm"
-import type { Document, DocumentType } from "../schema"
+import type { Document, DocumentType, DocumentFormat } from "../schema"
 
 export const documentsRepository = {
   /**
@@ -61,6 +61,9 @@ export const documentsRepository = {
       type: DocumentType
       title: string
       content: string
+      format?: DocumentFormat
+      templateId?: string | null
+      metadata?: Record<string, unknown> | null
     },
   ): Promise<Document> {
     const [created] = await db
@@ -70,6 +73,9 @@ export const documentsRepository = {
         type: data.type as "cv" | "cover_letter",
         title: data.title,
         content: data.content,
+        format: (data.format as "markdown" | "plain_text" | "html") || "plain_text",
+        templateId: data.templateId,
+        metadata: data.metadata,
       })
       .returning()
 
@@ -85,11 +91,24 @@ export const documentsRepository = {
     data: Partial<{
       title: string
       content: string
+      format: DocumentFormat
+      metadata: Record<string, unknown> | null
     }>,
   ): Promise<Document> {
-    const updateData: { title?: string; content?: string } = {}
+    const updateData: Partial<{
+      title: string
+      content: string
+      format: "markdown" | "plain_text" | "html"
+      metadata: Record<string, unknown> | null
+      updatedAt: Date
+    }> = {
+      updatedAt: new Date(),
+    }
+    
     if (data.title !== undefined) updateData.title = data.title
     if (data.content !== undefined) updateData.content = data.content
+    if (data.format !== undefined) updateData.format = data.format as "markdown" | "plain_text" | "html"
+    if (data.metadata !== undefined) updateData.metadata = data.metadata
 
     const [updated] = await db
       .update(documents)
@@ -124,6 +143,9 @@ function mapRowToDocument(row: typeof documents.$inferSelect): Document {
     type: row.type as DocumentType,
     title: row.title,
     content: row.content,
+    format: (row.format as DocumentFormat) || "plain_text",
+    templateId: row.templateId,
+    metadata: row.metadata as Record<string, unknown> | null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }

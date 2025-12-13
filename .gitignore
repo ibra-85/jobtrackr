@@ -44,3 +44,5 @@ next-env.d.ts
 # project documentation (private)
 PROJECT_PLAN.md
 MIGRATION_GUIDE.md
+DOCUMENTS_FEATURE_IMPROVEMENTS.md
+DOCUMENTS_QUICKSTART.md

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Sparkles, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { DocumentType } from "@/db/schema"
@@ -33,6 +34,7 @@ export function DocumentGenerateDialog({
   const [context, setContext] = useState("")
   const [userProfile, setUserProfile] = useState("")
   const [generating, setGenerating] = useState(false)
+  const [autoSave, setAutoSave] = useState(false)
 
   useEffect(() => {
     if (!open) {
@@ -62,8 +64,34 @@ export function DocumentGenerateDialog({
       const result = await response.json()
       toast.success("Document généré avec succès")
 
-      onGenerated?.(result.data.title, result.data.content)
-      onOpenChange(false)
+      const title = result.data.title
+      const content = result.data.content
+
+      if (autoSave) {
+        try {
+          const saveResp = await fetch("/api/documents", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type, title, content }),
+          })
+
+          if (!saveResp.ok) {
+            const err = await saveResp.json()
+            throw new Error(err.error || "Erreur lors de l'enregistrement automatique")
+          }
+
+          toast.success("Document enregistré automatiquement")
+        } catch (saveError) {
+          console.error("Erreur enregistrement auto:", saveError)
+          toast.error(saveError instanceof Error ? saveError.message : "Erreur lors de l'enregistrement automatique")
+          // Fallback: open editor with generated content
+          onGenerated?.(title, content)
+        }
+        onOpenChange(false)
+      } else {
+        onGenerated?.(title, content)
+        onOpenChange(false)
+      }
     } catch (error) {
       console.error("Erreur:", error)
       toast.error(error instanceof Error ? error.message : "Erreur lors de la génération")

@@ -50,12 +50,15 @@ export async function POST(request: NextRequest) {
       return validation.error
     }
 
-    const { type, title, content } = validation.data
+    const { type, title, content, format, templateId, metadata } = validation.data
 
     const document = await documentsRepository.create(session.user.id, {
       type,
       title,
       content,
+      format: format || "plain_text",
+      templateId,
+      metadata,
     })
 
     // Gamification : attribuer des points et mettre à jour le streak

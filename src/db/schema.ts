@@ -62,6 +62,7 @@ export type Company = {
 }
 
 export type DocumentType = "cv" | "cover_letter"
+export type DocumentFormat = "markdown" | "plain_text" | "html"
 
 export type Document = {
   id: string
@@ -69,8 +70,36 @@ export type Document = {
   type: DocumentType
   title: string
   content: string
+  format: DocumentFormat
+  templateId?: string | null
+  metadata?: Record<string, unknown> | null
   createdAt: Date
   updatedAt: Date
+}
+
+export type DocumentTemplate = {
+  id: string
+  name: string
+  description?: string | null
+  type: DocumentType
+  format: DocumentFormat
+  content: string
+  isPublic: boolean
+  userId?: string | null
+  thumbnail?: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type DocumentVersion = {
+  id: string
+  documentId: string
+  version: string
+  title: string
+  content: string
+  format: DocumentFormat
+  changelog?: string | null
+  createdAt: Date
 }
 
 export type ActivityType =
